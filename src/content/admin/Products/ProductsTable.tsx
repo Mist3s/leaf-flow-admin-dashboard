@@ -1,41 +1,24 @@
-import { FC, ChangeEvent, useState } from 'react';
-import { format } from 'date-fns';
-import { ru } from 'date-fns/locale';
+import { FC, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Tooltip,
-  Divider,
   Box,
-  FormControl,
-  InputLabel,
-  Card,
-  Checkbox,
-  IconButton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TablePagination,
-  TableRow,
-  TableContainer,
-  Select,
-  MenuItem,
   Typography,
-  useTheme,
-  CardHeader,
-  Switch,
-  TextField,
-  InputAdornment,
+  IconButton,
+  Tooltip,
   Avatar,
-  useMediaQuery,
-  Stack
+  Switch,
+  Chip,
+  Stack,
+  useTheme
 } from '@mui/material';
-import SearchTwoToneIcon from '@mui/icons-material/SearchTwoTone';
-import Label from 'src/components/Label';
 import EditTwoToneIcon from '@mui/icons-material/EditTwoTone';
 import DeleteTwoToneIcon from '@mui/icons-material/DeleteTwoTone';
+import Label from 'src/components/Label';
+import DataTable, { DataTableColumn, FilterOption } from 'src/components/DataTable';
 import { Product } from 'src/models';
 import { productsService } from 'src/api';
+import { ROUTES, PRODUCT_TYPE_CONFIG } from 'src/constants';
+import { formatDate } from 'src/utils';
 
 interface ProductsTableProps {
   products: Product[];
@@ -44,44 +27,41 @@ interface ProductsTableProps {
 
 const ProductsTable: FC<ProductsTableProps> = ({ products, onRefresh }) => {
   const navigate = useNavigate();
-  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
-  const [page, setPage] = useState<number>(0);
-  const [limit, setLimit] = useState<number>(10);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeFilter, setActiveFilter] = useState<string>('all');
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeFilter, setActiveFilter] = useState('all');
 
-  const handleSelectAllProducts = (event: ChangeEvent<HTMLInputElement>): void => {
-    setSelectedProducts(event.target.checked ? products.map((p) => p.id) : []);
-  };
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) => {
+      const matchesSearch = 
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.id.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesActive = 
+        activeFilter === 'all' || 
+        (activeFilter === 'active' && product.is_active) ||
+        (activeFilter === 'inactive' && !product.is_active);
+      return matchesSearch && matchesActive;
+    });
+  }, [products, searchTerm, activeFilter]);
 
-  const handleSelectOneProduct = (event: ChangeEvent<HTMLInputElement>, productId: string): void => {
-    if (!selectedProducts.includes(productId)) {
-      setSelectedProducts((prev) => [...prev, productId]);
-    } else {
-      setSelectedProducts((prev) => prev.filter((id) => id !== productId));
-    }
-  };
+  const activeFilterOptions: FilterOption[] = [
+    { value: 'all', label: 'Все' },
+    { value: 'active', label: 'Активные' },
+    { value: 'inactive', label: 'Неактивные' },
+  ];
 
-  const handlePageChange = (event: any, newPage: number): void => {
-    setPage(newPage);
-  };
-
-  const handleLimitChange = (event: ChangeEvent<HTMLInputElement>): void => {
-    setLimit(parseInt(event.target.value));
-  };
-
-  const handleToggleActive = async (productId: string, isActive: boolean) => {
+  const handleToggleActive = useCallback(async (e: React.MouseEvent, productId: string, isActive: boolean) => {
+    e.stopPropagation();
     try {
       await productsService.setActive(productId, isActive);
       onRefresh();
     } catch (error) {
       console.error('Error toggling product status:', error);
     }
-  };
+  }, [onRefresh]);
 
-  const handleDelete = async (productId: string) => {
+  const handleDelete = useCallback(async (e: React.MouseEvent, productId: string) => {
+    e.stopPropagation();
     if (window.confirm('Вы уверены, что хотите удалить этот продукт?')) {
       try {
         await productsService.delete(productId);
@@ -90,279 +70,224 @@ const ProductsTable: FC<ProductsTableProps> = ({ products, onRefresh }) => {
         console.error('Error deleting product:', error);
       }
     }
-  };
+  }, [onRefresh]);
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesActive = activeFilter === 'all' || 
-      (activeFilter === 'active' && product.is_active) ||
-      (activeFilter === 'inactive' && !product.is_active);
-    return matchesSearch && matchesActive;
-  });
-
-  const paginatedProducts = filteredProducts.slice(page * limit, page * limit + limit);
-
-  // Mobile card view
-  if (isMobile) {
-    return (
-      <Card>
-        <CardHeader
-          title="Продукты"
-          sx={{ pb: 1 }}
-        />
-        <Box px={2} pb={2}>
-          <Stack spacing={2}>
-            <TextField
-              size="small"
-              placeholder="Поиск..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              fullWidth
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchTwoToneIcon />
-                  </InputAdornment>
-                )
-              }}
-            />
-            <FormControl size="small" fullWidth>
-              <InputLabel>Статус</InputLabel>
-              <Select
-                value={activeFilter}
-                onChange={(e) => setActiveFilter(e.target.value)}
-                label="Статус"
-              >
-                <MenuItem value="all">Все</MenuItem>
-                <MenuItem value="active">Активные</MenuItem>
-                <MenuItem value="inactive">Неактивные</MenuItem>
-              </Select>
-            </FormControl>
-          </Stack>
+  const columns: DataTableColumn<Product>[] = [
+    {
+      id: 'product',
+      label: 'Продукт',
+      minWidth: 250,
+      render: (product) => (
+        <Box display="flex" alignItems="center" gap={2}>
+          <Avatar
+            variant="rounded"
+            src={product.image}
+            sx={{ 
+              width: 48, 
+              height: 48,
+              backgroundColor: theme.palette.primary.main + '15',
+              fontSize: '1.5rem',
+            }}
+          >
+            🍃
+          </Avatar>
+          <Box>
+            <Typography variant="body2" fontWeight={600}>
+              {product.name}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {product.id}
+            </Typography>
+          </Box>
         </Box>
-        <Divider />
-        <Box>
-          {paginatedProducts.map((product) => (
-            <Box
-              key={product.id}
+      ),
+    },
+    {
+      id: 'category',
+      label: 'Категория',
+      hideOnMobile: true,
+      render: (product) => (
+        <Chip
+          label={product.category_slug}
+          size="small"
+          variant="outlined"
+        />
+      ),
+    },
+    {
+      id: 'type',
+      label: 'Тип',
+      hideOnMobile: true,
+      render: (product) => (
+        <Typography variant="caption" color="text.secondary">
+          {PRODUCT_TYPE_CONFIG[product.product_type_code]?.label || product.product_type_code}
+        </Typography>
+      ),
+    },
+    {
+      id: 'variants',
+      label: 'Варианты',
+      align: 'center',
+      render: (product) => (
+        <Chip
+          label={product.variants.length}
+          size="small"
+          color="primary"
+          sx={{ minWidth: 32 }}
+        />
+      ),
+    },
+    {
+      id: 'active',
+      label: 'Активен',
+      align: 'center',
+      render: (product) => (
+        <Switch
+          checked={product.is_active}
+          onChange={(e) => handleToggleActive(e as any, product.id, e.target.checked)}
+          onClick={(e) => e.stopPropagation()}
+          color="success"
+          size="small"
+        />
+      ),
+    },
+    {
+      id: 'date',
+      label: 'Создан',
+      hideOnMobile: true,
+      render: (product) => (
+        <Typography variant="caption" color="text.secondary">
+          {formatDate(product.created_at)}
+        </Typography>
+      ),
+    },
+    {
+      id: 'actions',
+      label: '',
+      align: 'right',
+      render: (product) => (
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+          <Tooltip title="Редактировать" arrow>
+            <IconButton
+              size="small"
+              color="primary"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(ROUTES.PRODUCT_EDIT(product.id));
+              }}
               sx={{
-                p: 2,
-                borderBottom: `1px solid ${theme.palette.divider}`,
-                '&:last-child': { borderBottom: 'none' }
+                backgroundColor: theme.palette.primary.main + '10',
+                '&:hover': {
+                  backgroundColor: theme.palette.primary.main + '20',
+                },
               }}
             >
-              <Box display="flex" alignItems="flex-start" gap={2}>
-                <Avatar
-                  variant="rounded"
-                  src={product.image}
-                  sx={{ width: 56, height: 56 }}
-                >
-                  🍃
-                </Avatar>
-                <Box flex={1} minWidth={0}>
-                  <Typography variant="body1" fontWeight="bold" noWrap>
-                    {product.name}
-                  </Typography>
-                  <Box display="flex" gap={1} flexWrap="wrap" mt={0.5}>
-                    <Label color="info">{product.category_slug}</Label>
-                    <Label color="primary">{product.variants.length} вар.</Label>
-                    <Label color={product.is_active ? 'success' : 'warning'}>
-                      {product.is_active ? 'Активен' : 'Неактивен'}
-                    </Label>
-                  </Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                    {product.created_at && format(new Date(product.created_at), 'dd MMM yyyy', { locale: ru })}
-                  </Typography>
-                </Box>
-                <Box display="flex" flexDirection="column" gap={0.5}>
-                  <IconButton
-                    size="small"
-                    onClick={() => navigate(`/admin/products/${product.id}`)}
-                    color="primary"
-                  >
-                    <EditTwoToneIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleDelete(product.id)}
-                    color="error"
-                  >
-                    <DeleteTwoToneIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-              </Box>
-            </Box>
-          ))}
-        </Box>
-        <Box p={2}>
-          <TablePagination
-            component="div"
-            count={filteredProducts.length}
-            onPageChange={handlePageChange}
-            onRowsPerPageChange={handleLimitChange}
-            page={page}
-            rowsPerPage={limit}
-            rowsPerPageOptions={[5, 10, 25]}
-            labelRowsPerPage="На странице:"
-          />
-        </Box>
-      </Card>
-    );
-  }
-
-  // Desktop table view
-  return (
-    <Card>
-      <CardHeader
-        action={
-          <Box display="flex" gap={2} flexWrap="wrap">
-            <TextField
+              <EditTwoToneIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Удалить" arrow>
+            <IconButton
               size="small"
-              placeholder="Поиск..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchTwoToneIcon />
-                  </InputAdornment>
-                )
+              color="error"
+              onClick={(e) => handleDelete(e, product.id)}
+              sx={{
+                backgroundColor: theme.palette.error.main + '10',
+                '&:hover': {
+                  backgroundColor: theme.palette.error.main + '20',
+                },
               }}
+            >
+              <DeleteTwoToneIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      ),
+    },
+  ];
+
+  const renderMobileCard = (product: Product) => (
+    <Box>
+      <Box display="flex" alignItems="flex-start" gap={2}>
+        <Avatar
+          variant="rounded"
+          src={product.image}
+          sx={{ 
+            width: 56, 
+            height: 56,
+            backgroundColor: theme.palette.primary.main + '15',
+            fontSize: '1.5rem',
+          }}
+        >
+          🍃
+        </Avatar>
+        <Box flex={1} minWidth={0}>
+          <Typography variant="body1" fontWeight={600} noWrap>
+            {product.name}
+          </Typography>
+          <Box display="flex" gap={0.5} flexWrap="wrap" mt={0.5} mb={1}>
+            <Chip
+              label={product.category_slug}
+              size="small"
+              variant="outlined"
+              sx={{ height: 22, fontSize: '0.7rem' }}
             />
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Статус</InputLabel>
-              <Select
-                value={activeFilter}
-                onChange={(e) => setActiveFilter(e.target.value)}
-                label="Статус"
-              >
-                <MenuItem value="all">Все</MenuItem>
-                <MenuItem value="active">Активные</MenuItem>
-                <MenuItem value="inactive">Неактивные</MenuItem>
-              </Select>
-            </FormControl>
+            <Chip
+              label={`${product.variants.length} вар.`}
+              size="small"
+              color="primary"
+              sx={{ height: 22, fontSize: '0.7rem' }}
+            />
+            <Label color={product.is_active ? 'success' : 'warning'}>
+              {product.is_active ? 'Активен' : 'Неактивен'}
+            </Label>
           </Box>
-        }
-        title="Продукты"
-      />
-      <Divider />
-      <TableContainer>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell padding="checkbox">
-                <Checkbox
-                  color="primary"
-                  checked={selectedProducts.length === products.length}
-                  indeterminate={selectedProducts.length > 0 && selectedProducts.length < products.length}
-                  onChange={handleSelectAllProducts}
-                />
-              </TableCell>
-              <TableCell>Продукт</TableCell>
-              <TableCell>Категория</TableCell>
-              <TableCell>Тип</TableCell>
-              <TableCell align="center">Вариантов</TableCell>
-              <TableCell align="center">Активен</TableCell>
-              <TableCell>Создан</TableCell>
-              <TableCell align="right">Действия</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {paginatedProducts.map((product) => {
-              const isSelected = selectedProducts.includes(product.id);
-              return (
-                <TableRow hover key={product.id} selected={isSelected}>
-                  <TableCell padding="checkbox">
-                    <Checkbox
-                      color="primary"
-                      checked={isSelected}
-                      onChange={(e) => handleSelectOneProduct(e, product.id)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Box display="flex" alignItems="center" gap={2}>
-                      <Avatar
-                        variant="rounded"
-                        src={product.image}
-                        sx={{ width: 48, height: 48 }}
-                      >
-                        🍃
-                      </Avatar>
-                      <Box>
-                        <Typography variant="body1" fontWeight="bold" noWrap>
-                          {product.name}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" noWrap>
-                          {product.id}
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    <Label color="info">{product.category_slug}</Label>
-                  </TableCell>
-                  <TableCell>{product.product_type_code}</TableCell>
-                  <TableCell align="center">
-                    <Label color="primary">{product.variants.length}</Label>
-                  </TableCell>
-                  <TableCell align="center">
-                    <Switch
-                      checked={product.is_active}
-                      onChange={(e) => handleToggleActive(product.id, e.target.checked)}
-                      color="primary"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" noWrap>
-                      {product.created_at && format(new Date(product.created_at), 'dd MMM yyyy', { locale: ru })}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Tooltip title="Редактировать" arrow>
-                      <IconButton
-                        sx={{
-                          '&:hover': { background: theme.colors.primary.lighter },
-                          color: theme.palette.primary.main
-                        }}
-                        onClick={() => navigate(`/admin/products/${product.id}`)}
-                        size="small"
-                      >
-                        <EditTwoToneIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Удалить" arrow>
-                      <IconButton
-                        sx={{
-                          '&:hover': { background: theme.colors.error.lighter },
-                          color: theme.palette.error.main
-                        }}
-                        onClick={() => handleDelete(product.id)}
-                        size="small"
-                      >
-                        <DeleteTwoToneIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      <Box p={2}>
-        <TablePagination
-          component="div"
-          count={filteredProducts.length}
-          onPageChange={handlePageChange}
-          onRowsPerPageChange={handleLimitChange}
-          page={page}
-          rowsPerPage={limit}
-          rowsPerPageOptions={[5, 10, 25, 50]}
-          labelRowsPerPage="Строк на странице:"
-        />
+          <Typography variant="caption" color="text.secondary">
+            {formatDate(product.created_at)}
+          </Typography>
+        </Box>
+        <Stack direction="column" spacing={0.5}>
+          <IconButton
+            size="small"
+            color="primary"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(ROUTES.PRODUCT_EDIT(product.id));
+            }}
+          >
+            <EditTwoToneIcon fontSize="small" />
+          </IconButton>
+          <IconButton
+            size="small"
+            color="error"
+            onClick={(e) => handleDelete(e, product.id)}
+          >
+            <DeleteTwoToneIcon fontSize="small" />
+          </IconButton>
+        </Stack>
       </Box>
-    </Card>
+    </Box>
+  );
+
+  return (
+    <DataTable
+      title="Продукты"
+      data={filteredProducts}
+      columns={columns}
+      keyExtractor={(product) => product.id}
+      searchPlaceholder="Поиск по названию или ID..."
+      onSearch={setSearchTerm}
+      filters={[
+        {
+          label: 'Статус',
+          value: activeFilter,
+          options: activeFilterOptions,
+          onChange: setActiveFilter,
+        },
+      ]}
+      renderMobileCard={renderMobileCard}
+      onRowClick={(product) => navigate(ROUTES.PRODUCT_EDIT(product.id))}
+      emptyMessage="Продукты не найдены"
+    />
   );
 };
 

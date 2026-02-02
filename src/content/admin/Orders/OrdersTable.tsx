@@ -1,295 +1,230 @@
-import { FC, ChangeEvent, useState } from 'react';
-import { format } from 'date-fns';
-import { ru } from 'date-fns/locale';
+import { FC, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Tooltip,
-  Divider,
   Box,
-  FormControl,
-  InputLabel,
-  Card,
-  IconButton,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TablePagination,
-  TableRow,
-  TableContainer,
-  Select,
-  MenuItem,
   Typography,
-  useTheme,
-  CardHeader,
-  TextField,
-  InputAdornment,
-  useMediaQuery,
-  Stack
+  IconButton,
+  Tooltip,
+  Avatar,
+  Chip,
+  useTheme
 } from '@mui/material';
-import SearchTwoToneIcon from '@mui/icons-material/SearchTwoTone';
 import VisibilityTwoToneIcon from '@mui/icons-material/VisibilityTwoTone';
+import LocalShippingTwoToneIcon from '@mui/icons-material/LocalShippingTwoTone';
+import StorefrontTwoToneIcon from '@mui/icons-material/StorefrontTwoTone';
 import Label from 'src/components/Label';
+import DataTable, { DataTableColumn, FilterOption } from 'src/components/DataTable';
 import { Order, OrderStatus } from 'src/models';
+import { ORDER_STATUS_CONFIG, DELIVERY_METHOD_CONFIG, ROUTES } from 'src/constants';
+import { formatDateTime, formatOrderId, formatPrice } from 'src/utils';
 
 interface OrdersTableProps {
   orders: Order[];
 }
 
-const getStatusLabel = (status: OrderStatus): JSX.Element => {
-  const map: Record<OrderStatus, { text: string; color: 'error' | 'success' | 'warning' | 'info' | 'primary' }> = {
-    created: { text: 'Создан', color: 'info' },
-    processing: { text: 'В обработке', color: 'warning' },
-    paid: { text: 'Оплачен', color: 'primary' },
-    fulfilled: { text: 'Выполнен', color: 'success' },
-    cancelled: { text: 'Отменён', color: 'error' }
-  };
-
-  const { text, color } = map[status];
-  return <Label color={color}>{text}</Label>;
-};
-
-const getDeliveryLabel = (delivery: string): string => {
-  const map: Record<string, string> = {
-    pickup: 'Самовывоз',
-    courier: 'Курьер',
-    cdek: 'СДЭК'
-  };
-  return map[delivery] || delivery;
-};
-
 const OrdersTable: FC<OrdersTableProps> = ({ orders }) => {
   const navigate = useNavigate();
-  const [page, setPage] = useState<number>(0);
-  const [limit, setLimit] = useState<number>(10);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
 
-  const filteredOrders = orders.filter((order) => {
-    const matchesSearch = 
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.phone.includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      const matchesSearch = 
+        order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.phone.includes(searchTerm);
+      const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [orders, searchTerm, statusFilter]);
 
-  const paginatedOrders = filteredOrders.slice(page * limit, page * limit + limit);
+  const statusFilterOptions: FilterOption[] = [
+    { value: 'all', label: 'Все статусы' },
+    ...Object.entries(ORDER_STATUS_CONFIG).map(([value, config]) => ({
+      value,
+      label: config.label,
+    })),
+  ];
 
-  // Mobile card view
-  if (isMobile) {
-    return (
-      <Card>
-        <CardHeader title="Заказы" sx={{ pb: 1 }} />
-        <Box px={2} pb={2}>
-          <Stack spacing={2}>
-            <TextField
-              size="small"
-              placeholder="Поиск..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              fullWidth
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchTwoToneIcon />
-                  </InputAdornment>
-                )
-              }}
-            />
-            <FormControl size="small" fullWidth>
-              <InputLabel>Статус</InputLabel>
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                label="Статус"
-              >
-                <MenuItem value="all">Все</MenuItem>
-                <MenuItem value="created">Создан</MenuItem>
-                <MenuItem value="processing">В обработке</MenuItem>
-                <MenuItem value="paid">Оплачен</MenuItem>
-                <MenuItem value="fulfilled">Выполнен</MenuItem>
-                <MenuItem value="cancelled">Отменён</MenuItem>
-              </Select>
-            </FormControl>
-          </Stack>
-        </Box>
-        <Divider />
+  const getDeliveryIcon = (delivery: string) => {
+    switch (delivery) {
+      case 'pickup':
+        return <StorefrontTwoToneIcon fontSize="small" />;
+      default:
+        return <LocalShippingTwoToneIcon fontSize="small" />;
+    }
+  };
+
+  const columns: DataTableColumn<Order>[] = [
+    {
+      id: 'id',
+      label: '№ Заказа',
+      render: (order) => (
+        <Typography variant="body2" fontWeight={600} color="primary">
+          {formatOrderId(order.id)}
+        </Typography>
+      ),
+    },
+    {
+      id: 'customer',
+      label: 'Клиент',
+      render: (order) => (
         <Box>
-          {paginatedOrders.map((order) => (
-            <Box
-              key={order.id}
-              sx={{
-                p: 2,
-                borderBottom: `1px solid ${theme.palette.divider}`,
-                '&:last-child': { borderBottom: 'none' },
-                cursor: 'pointer',
-                '&:hover': { bgcolor: 'action.hover' }
-              }}
-              onClick={() => navigate(`/admin/orders/${order.id}`)}
-            >
-              <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
-                <Box>
-                  <Typography variant="body1" fontWeight="bold">
-                    #{order.id.slice(-8).toUpperCase()}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {order.customer_name}
-                  </Typography>
-                </Box>
-                <Typography variant="h6" color="primary.main">
-                  {order.total} ₽
-                </Typography>
-              </Box>
-              <Box display="flex" gap={1} flexWrap="wrap" mb={1}>
-                {getStatusLabel(order.status)}
-                <Label color="secondary">{getDeliveryLabel(order.delivery)}</Label>
-              </Box>
-              <Typography variant="caption" color="text.secondary">
-                {order.created_at && format(new Date(order.created_at), 'dd MMM yyyy HH:mm', { locale: ru })}
-                {' • '}
-                {order.phone}
-              </Typography>
-            </Box>
-          ))}
+          <Typography variant="body2" fontWeight={500}>
+            {order.customer_name}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {order.phone}
+          </Typography>
         </Box>
-        <Box p={2}>
-          <TablePagination
-            component="div"
-            count={filteredOrders.length}
-            onPageChange={(_, newPage) => setPage(newPage)}
-            onRowsPerPageChange={(e) => setLimit(parseInt(e.target.value))}
-            page={page}
-            rowsPerPage={limit}
-            rowsPerPageOptions={[5, 10, 25]}
-            labelRowsPerPage="На странице:"
+      ),
+    },
+    {
+      id: 'delivery',
+      label: 'Доставка',
+      hideOnMobile: true,
+      render: (order) => (
+        <Chip
+          icon={getDeliveryIcon(order.delivery)}
+          label={DELIVERY_METHOD_CONFIG[order.delivery]?.label || order.delivery}
+          size="small"
+          variant="outlined"
+        />
+      ),
+    },
+    {
+      id: 'total',
+      label: 'Сумма',
+      align: 'right',
+      render: (order) => (
+        <Typography variant="body2" fontWeight={600}>
+          {formatPrice(order.total)}
+        </Typography>
+      ),
+    },
+    {
+      id: 'status',
+      label: 'Статус',
+      align: 'center',
+      render: (order) => {
+        const config = ORDER_STATUS_CONFIG[order.status];
+        return (
+          <Label color={config?.color || 'info'}>
+            {config?.label || order.status}
+          </Label>
+        );
+      },
+    },
+    {
+      id: 'date',
+      label: 'Дата',
+      hideOnMobile: true,
+      render: (order) => (
+        <Typography variant="caption" color="text.secondary">
+          {formatDateTime(order.created_at)}
+        </Typography>
+      ),
+    },
+    {
+      id: 'actions',
+      label: '',
+      align: 'right',
+      render: (order) => (
+        <Tooltip title="Подробнее" arrow>
+          <IconButton
+            size="small"
+            color="primary"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(ROUTES.ORDER_DETAIL(order.id));
+            }}
+            sx={{
+              backgroundColor: theme.palette.primary.main + '10',
+              '&:hover': {
+                backgroundColor: theme.palette.primary.main + '20',
+              },
+            }}
+          >
+            <VisibilityTwoToneIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      ),
+    },
+  ];
+
+  const renderMobileCard = (order: Order) => {
+    const statusConfig = ORDER_STATUS_CONFIG[order.status];
+    const deliveryConfig = DELIVERY_METHOD_CONFIG[order.delivery];
+
+    return (
+      <Box>
+        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1.5}>
+          <Box>
+            <Typography variant="body1" fontWeight={600} color="primary">
+              {formatOrderId(order.id)}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {order.customer_name}
+            </Typography>
+          </Box>
+          <Typography variant="h6" fontWeight={700} color="primary.main">
+            {formatPrice(order.total)}
+          </Typography>
+        </Box>
+        
+        <Box display="flex" gap={1} flexWrap="wrap" mb={1.5}>
+          <Label color={statusConfig?.color || 'info'}>
+            {statusConfig?.label || order.status}
+          </Label>
+          <Chip
+            icon={getDeliveryIcon(order.delivery)}
+            label={deliveryConfig?.label || order.delivery}
+            size="small"
+            variant="outlined"
+            sx={{ height: 24 }}
           />
         </Box>
-      </Card>
-    );
-  }
-
-  // Desktop table view
-  return (
-    <Card>
-      <CardHeader
-        action={
-          <Box display="flex" gap={2}>
-            <TextField
-              size="small"
-              placeholder="Поиск..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchTwoToneIcon />
-                  </InputAdornment>
-                )
-              }}
-            />
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Статус</InputLabel>
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                label="Статус"
-              >
-                <MenuItem value="all">Все</MenuItem>
-                <MenuItem value="created">Создан</MenuItem>
-                <MenuItem value="processing">В обработке</MenuItem>
-                <MenuItem value="paid">Оплачен</MenuItem>
-                <MenuItem value="fulfilled">Выполнен</MenuItem>
-                <MenuItem value="cancelled">Отменён</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-        }
-        title="Заказы"
-      />
-      <Divider />
-      <TableContainer>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>№ Заказа</TableCell>
-              <TableCell>Клиент</TableCell>
-              <TableCell>Телефон</TableCell>
-              <TableCell>Доставка</TableCell>
-              <TableCell align="right">Сумма</TableCell>
-              <TableCell align="center">Статус</TableCell>
-              <TableCell>Дата</TableCell>
-              <TableCell align="right">Действия</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {paginatedOrders.map((order) => (
-              <TableRow hover key={order.id}>
-                <TableCell>
-                  <Typography variant="body1" fontWeight="bold" noWrap>
-                    #{order.id.slice(-8).toUpperCase()}
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body1" noWrap>
-                    {order.customer_name}
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2" noWrap>
-                    {order.phone}
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Label color="secondary">{getDeliveryLabel(order.delivery)}</Label>
-                </TableCell>
-                <TableCell align="right">
-                  <Typography variant="body1" fontWeight="bold">
-                    {order.total} ₽
-                  </Typography>
-                </TableCell>
-                <TableCell align="center">
-                  {getStatusLabel(order.status)}
-                </TableCell>
-                <TableCell>
-                  <Typography variant="body2" noWrap>
-                    {order.created_at && format(new Date(order.created_at), 'dd MMM yyyy HH:mm', { locale: ru })}
-                  </Typography>
-                </TableCell>
-                <TableCell align="right">
-                  <Tooltip title="Просмотреть" arrow>
-                    <IconButton
-                      sx={{
-                        '&:hover': { background: theme.colors.primary.lighter },
-                        color: theme.palette.primary.main
-                      }}
-                      onClick={() => navigate(`/admin/orders/${order.id}`)}
-                      size="small"
-                    >
-                      <VisibilityTwoToneIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      <Box p={2}>
-        <TablePagination
-          component="div"
-          count={filteredOrders.length}
-          onPageChange={(_, newPage) => setPage(newPage)}
-          onRowsPerPageChange={(e) => setLimit(parseInt(e.target.value))}
-          page={page}
-          rowsPerPage={limit}
-          rowsPerPageOptions={[5, 10, 25, 50]}
-          labelRowsPerPage="Строк на странице:"
-        />
+        
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="caption" color="text.secondary">
+            {formatDateTime(order.created_at)} • {order.phone}
+          </Typography>
+          <IconButton
+            size="small"
+            color="primary"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(ROUTES.ORDER_DETAIL(order.id));
+            }}
+          >
+            <VisibilityTwoToneIcon fontSize="small" />
+          </IconButton>
+        </Box>
       </Box>
-    </Card>
+    );
+  };
+
+  return (
+    <DataTable
+      title="Заказы"
+      data={filteredOrders}
+      columns={columns}
+      keyExtractor={(order) => order.id}
+      searchPlaceholder="Поиск по номеру, имени или телефону..."
+      onSearch={setSearchTerm}
+      filters={[
+        {
+          label: 'Статус',
+          value: statusFilter,
+          options: statusFilterOptions,
+          onChange: setStatusFilter,
+        },
+      ]}
+      renderMobileCard={renderMobileCard}
+      onRowClick={(order) => navigate(ROUTES.ORDER_DETAIL(order.id))}
+      emptyMessage="Заказы не найдены"
+    />
   );
 };
 

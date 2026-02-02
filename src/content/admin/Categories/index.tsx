@@ -1,22 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import {
   Container,
-  Grid,
-  Card,
-  CardHeader,
-  Divider,
   Button,
   Typography,
   Box,
-  CircularProgress,
   Alert,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TableContainer,
   IconButton,
   Tooltip,
   Dialog,
@@ -24,12 +13,18 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  useTheme
+  Stack,
+  Chip,
+  useTheme,
+  alpha
 } from '@mui/material';
 import AddTwoToneIcon from '@mui/icons-material/AddTwoTone';
 import EditTwoToneIcon from '@mui/icons-material/EditTwoTone';
 import DeleteTwoToneIcon from '@mui/icons-material/DeleteTwoTone';
-import PageTitleWrapper from 'src/components/PageTitleWrapper';
+import CategoryTwoToneIcon from '@mui/icons-material/CategoryTwoTone';
+import PageHeader from 'src/components/PageHeader';
+import LoadingState from 'src/components/LoadingState';
+import DataTable, { DataTableColumn } from 'src/components/DataTable';
 import { categoriesService } from 'src/api';
 import { Category, CategoryCreate, CategoryUpdate } from 'src/models';
 
@@ -38,6 +33,7 @@ function CategoriesList() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [formData, setFormData] = useState({ slug: '', label: '', sort_order: 0 });
@@ -59,6 +55,13 @@ function CategoriesList() {
   useEffect(() => {
     fetchCategories();
   }, []);
+
+  const filteredCategories = useMemo(() => {
+    return categories.filter((category) => 
+      category.slug.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      category.label.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [categories, searchTerm]);
 
   const handleOpenDialog = (category?: Category) => {
     if (category) {
@@ -107,106 +110,176 @@ function CategoriesList() {
     }
   };
 
+  const columns: DataTableColumn<Category>[] = [
+    {
+      id: 'slug',
+      label: 'Slug',
+      render: (category) => (
+        <Chip
+          label={category.slug}
+          size="small"
+          variant="outlined"
+          sx={{ borderRadius: 1.5, fontFamily: 'monospace' }}
+        />
+      ),
+    },
+    {
+      id: 'label',
+      label: 'Название',
+      render: (category) => (
+        <Typography variant="body2" fontWeight={600}>
+          {category.label}
+        </Typography>
+      ),
+    },
+    {
+      id: 'sort_order',
+      label: 'Порядок',
+      align: 'center',
+      render: (category) => (
+        <Box
+          sx={{
+            width: 32,
+            height: 32,
+            borderRadius: 1,
+            backgroundColor: alpha(theme.palette.primary.main, 0.1),
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: 'auto',
+          }}
+        >
+          <Typography variant="body2" fontWeight={600} color="primary">
+            {category.sort_order}
+          </Typography>
+        </Box>
+      ),
+    },
+    {
+      id: 'actions',
+      label: '',
+      align: 'right',
+      render: (category) => (
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+          <Tooltip title="Редактировать" arrow>
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenDialog(category);
+              }}
+              sx={{
+                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.2) },
+              }}
+            >
+              <EditTwoToneIcon fontSize="small" color="primary" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Удалить" arrow>
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDelete(category.slug);
+              }}
+              sx={{
+                backgroundColor: alpha(theme.palette.error.main, 0.1),
+                '&:hover': { backgroundColor: alpha(theme.palette.error.main, 0.2) },
+              }}
+            >
+              <DeleteTwoToneIcon fontSize="small" color="error" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      ),
+    },
+  ];
+
+  const renderMobileCard = (category: Category) => (
+    <Box>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+        <Box display="flex" alignItems="center" gap={1}>
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: 1.5,
+              backgroundColor: alpha(theme.palette.primary.main, 0.1),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <CategoryTwoToneIcon color="primary" />
+          </Box>
+          <Box>
+            <Typography variant="body1" fontWeight={600}>
+              {category.label}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" fontFamily="monospace">
+              {category.slug}
+            </Typography>
+          </Box>
+        </Box>
+        <Chip
+          label={`#${category.sort_order}`}
+          size="small"
+          color="primary"
+          sx={{ borderRadius: 1 }}
+        />
+      </Box>
+      <Box display="flex" justifyContent="flex-end" gap={0.5}>
+        <IconButton size="small" onClick={() => handleOpenDialog(category)}>
+          <EditTwoToneIcon fontSize="small" color="primary" />
+        </IconButton>
+        <IconButton size="small" onClick={() => handleDelete(category.slug)}>
+          <DeleteTwoToneIcon fontSize="small" color="error" />
+        </IconButton>
+      </Box>
+    </Box>
+  );
+
+  if (loading) {
+    return <LoadingState message="Загрузка категорий..." />;
+  }
+
   return (
     <>
       <Helmet>
         <title>Категории - Leaf Flow Admin</title>
       </Helmet>
-      <PageTitleWrapper>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Box>
-            <Typography variant="h3" component="h3" gutterBottom>
-              Категории
-            </Typography>
-            <Typography variant="subtitle2">
-              Управление категориями продуктов
-            </Typography>
-          </Box>
-          <Button
-            variant="contained"
-            startIcon={<AddTwoToneIcon fontSize="small" />}
-            onClick={() => handleOpenDialog()}
-          >
-            Добавить категорию
-          </Button>
-        </Box>
-      </PageTitleWrapper>
+      <PageHeader
+        title="Категории"
+        subtitle="Управление категориями продуктов"
+        action={{
+          label: 'Добавить категорию',
+          icon: <AddTwoToneIcon />,
+          onClick: () => handleOpenDialog(),
+        }}
+      />
       <Container maxWidth="lg">
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-            {loading ? (
-              <Box display="flex" justifyContent="center" py={5}>
-                <CircularProgress />
-              </Box>
-            ) : error ? (
-              <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
-            ) : (
-              <Card>
-                <CardHeader title="Все категории" />
-                <Divider />
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Slug</TableCell>
-                        <TableCell>Название</TableCell>
-                        <TableCell align="center">Порядок</TableCell>
-                        <TableCell align="right">Действия</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {categories.map((category) => (
-                        <TableRow hover key={category.slug}>
-                          <TableCell>
-                            <Typography variant="body1" fontWeight="bold">
-                              {category.slug}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>{category.label}</TableCell>
-                          <TableCell align="center">{category.sort_order}</TableCell>
-                          <TableCell align="right">
-                            <Tooltip title="Редактировать" arrow>
-                              <IconButton
-                                sx={{
-                                  '&:hover': { background: theme.colors.primary.lighter },
-                                  color: theme.palette.primary.main
-                                }}
-                                onClick={() => handleOpenDialog(category)}
-                                size="small"
-                              >
-                                <EditTwoToneIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Удалить" arrow>
-                              <IconButton
-                                sx={{
-                                  '&:hover': { background: theme.colors.error.lighter },
-                                  color: theme.palette.error.main
-                                }}
-                                onClick={() => handleDelete(category.slug)}
-                                size="small"
-                              >
-                                <DeleteTwoToneIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Card>
-            )}
-          </Grid>
-        </Grid>
+        {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
+        <DataTable
+          title="Все категории"
+          data={filteredCategories}
+          columns={columns}
+          keyExtractor={(category) => category.slug}
+          searchPlaceholder="Поиск по slug или названию..."
+          onSearch={setSearchTerm}
+          renderMobileCard={renderMobileCard}
+          emptyMessage="Категории не найдены"
+        />
       </Container>
 
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {editingCategory ? 'Редактировать категорию' : 'Новая категория'}
+          <Typography variant="h6" fontWeight={600}>
+            {editingCategory ? 'Редактировать категорию' : 'Новая категория'}
+          </Typography>
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ pt: 2 }}>
+          <Box sx={{ pt: 1 }}>
             <TextField
               fullWidth
               label="Slug"
@@ -235,10 +308,10 @@ function CategoriesList() {
             />
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={handleCloseDialog}>Отмена</Button>
           <Button onClick={handleSubmit} variant="contained" disabled={saving}>
-            {saving ? <CircularProgress size={20} /> : 'Сохранить'}
+            {saving ? 'Сохранение...' : 'Сохранить'}
           </Button>
         </DialogActions>
       </Dialog>

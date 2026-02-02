@@ -430,12 +430,16 @@ export const PureLightTheme = createTheme({
         },
         icon: {
           top: 'calc(50% - 14px)'
+        },
+        select: {
+          borderRadius: 12
         }
       }
     },
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
+          borderRadius: 12,
           '& .MuiInputAdornment-positionEnd.MuiInputAdornment-outlined': {
             paddingRight: 6
           },
@@ -479,6 +483,9 @@ export const PureLightTheme = createTheme({
     },
     MuiChip: {
       styleOverrides: {
+        root: {
+          borderRadius: 8
+        },
         colorSecondary: {
           background: colors.alpha.black[5],
           color: colors.alpha.black[100],
@@ -577,6 +584,7 @@ export const PureLightTheme = createTheme({
           textTransform: 'none',
           paddingLeft: 16,
           paddingRight: 16,
+          borderRadius: 12,
 
           '.MuiSvgIcon-root': {
             transition: 'all .2s'
@@ -625,7 +633,7 @@ export const PureLightTheme = createTheme({
       },
       styleOverrides: {
         root: {
-          borderRadius: 6
+          borderRadius: 12
         }
       }
     },
@@ -649,11 +657,11 @@ export const PureLightTheme = createTheme({
     MuiIconButton: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
+          borderRadius: 12,
           padding: 8,
 
           '& .MuiTouchRipple-root': {
-            borderRadius: 8
+            borderRadius: 12
           }
         },
         sizeSmall: {
@@ -680,7 +688,7 @@ export const PureLightTheme = createTheme({
     MuiDivider: {
       styleOverrides: {
         root: {
-          background: colors.alpha.black[10],
+          background: alpha(themeColors.primary, 0.08),
           border: 0,
           height: 1
         },
@@ -714,7 +722,8 @@ export const PureLightTheme = createTheme({
     MuiPaper: {
       styleOverrides: {
         root: {
-          padding: 0
+          padding: 0,
+          borderRadius: 16
         },
         elevation0: {
           boxShadow: 'none'
@@ -730,6 +739,21 @@ export const PureLightTheme = createTheme({
         },
         outlined: {
           boxShadow: colors.shadows.card
+        }
+      }
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          borderRadius: 16,
+          boxShadow: colors.shadows.card
+        }
+      }
+    },
+    MuiDialog: {
+      styleOverrides: {
+        paper: {
+          borderRadius: 16
         }
       }
     },
@@ -968,14 +992,15 @@ export const PureLightTheme = createTheme({
     MuiTableCell: {
       styleOverrides: {
         root: {
-          borderBottomColor: colors.alpha.black[10],
+          borderBottomColor: alpha(themeColors.primary, 0.08),
           fontSize: 14
         },
         head: {
           textTransform: 'uppercase',
           fontSize: 13,
           fontWeight: 'bold',
-          color: colors.alpha.black[70]
+          color: colors.alpha.black[70],
+          borderBottomColor: alpha(themeColors.primary, 0.12)
         }
       }
     },
