@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
-
-import { NavLink } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import {
   Avatar,
@@ -9,19 +8,15 @@ import {
   Divider,
   Hidden,
   lighten,
-  List,
-  ListItem,
-  ListItemText,
   Popover,
   Typography
 } from '@mui/material';
 
-import InboxTwoToneIcon from '@mui/icons-material/InboxTwoTone';
 import { styled } from '@mui/material/styles';
 import ExpandMoreTwoToneIcon from '@mui/icons-material/ExpandMoreTwoTone';
-import AccountBoxTwoToneIcon from '@mui/icons-material/AccountBoxTwoTone';
 import LockOpenTwoToneIcon from '@mui/icons-material/LockOpenTwoTone';
-import AccountTreeTwoToneIcon from '@mui/icons-material/AccountTreeTwoTone';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import { useAuth } from 'src/contexts/AuthContext';
 
 const UserBoxButton = styled(Button)(
   ({ theme }) => `
@@ -59,11 +54,8 @@ const UserBoxDescription = styled(Typography)(
 );
 
 function HeaderUserbox() {
-  const user = {
-    name: 'Catherine Pike',
-    avatar: '/static/images/avatars/1.jpg',
-    jobtitle: 'Project Manager'
-  };
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const ref = useRef<any>(null);
   const [isOpen, setOpen] = useState<boolean>(false);
@@ -76,15 +68,22 @@ function HeaderUserbox() {
     setOpen(false);
   };
 
+  const handleLogout = (): void => {
+    logout();
+    navigate('/login');
+  };
+
   return (
     <>
       <UserBoxButton color="secondary" ref={ref} onClick={handleOpen}>
-        <Avatar variant="rounded" alt={user.name} src={user.avatar} />
+        <Avatar variant="rounded" sx={{ bgcolor: 'primary.main' }}>
+          <AdminPanelSettingsIcon />
+        </Avatar>
         <Hidden mdDown>
           <UserBoxText>
-            <UserBoxLabel variant="body1">{user.name}</UserBoxLabel>
+            <UserBoxLabel variant="body1">Администратор</UserBoxLabel>
             <UserBoxDescription variant="body2">
-              {user.jobtitle}
+              Leaf Flow
             </UserBoxDescription>
           </UserBoxText>
         </Hidden>
@@ -105,39 +104,22 @@ function HeaderUserbox() {
           horizontal: 'right'
         }}
       >
-        <MenuUserBox sx={{ minWidth: 210 }} display="flex">
-          <Avatar variant="rounded" alt={user.name} src={user.avatar} />
+        <MenuUserBox sx={{ minWidth: 210 }} display="flex" alignItems="center">
+          <Avatar variant="rounded" sx={{ bgcolor: 'primary.main' }}>
+            <AdminPanelSettingsIcon />
+          </Avatar>
           <UserBoxText>
-            <UserBoxLabel variant="body1">{user.name}</UserBoxLabel>
+            <UserBoxLabel variant="body1">Администратор</UserBoxLabel>
             <UserBoxDescription variant="body2">
-              {user.jobtitle}
+              Leaf Flow
             </UserBoxDescription>
           </UserBoxText>
         </MenuUserBox>
-        <Divider sx={{ mb: 0 }} />
-        <List sx={{ p: 1 }} component="nav">
-          <ListItem button to="/management/profile/details" component={NavLink}>
-            <AccountBoxTwoToneIcon fontSize="small" />
-            <ListItemText primary="My Profile" />
-          </ListItem>
-          <ListItem button to="/dashboards/messenger" component={NavLink}>
-            <InboxTwoToneIcon fontSize="small" />
-            <ListItemText primary="Messenger" />
-          </ListItem>
-          <ListItem
-            button
-            to="/management/profile/settings"
-            component={NavLink}
-          >
-            <AccountTreeTwoToneIcon fontSize="small" />
-            <ListItemText primary="Account Settings" />
-          </ListItem>
-        </List>
         <Divider />
         <Box sx={{ m: 1 }}>
-          <Button color="primary" fullWidth>
+          <Button color="primary" fullWidth onClick={handleLogout}>
             <LockOpenTwoToneIcon sx={{ mr: 1 }} />
-            Sign out
+            Выйти
           </Button>
         </Box>
       </Popover>

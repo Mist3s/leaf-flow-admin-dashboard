@@ -9,14 +9,12 @@ import {
   styled,
   Divider,
   useTheme,
-  Button,
   lighten,
   darken,
-  Tooltip
+  Typography
 } from '@mui/material';
 
 import SidebarMenu from './SidebarMenu';
-import Logo from 'src/components/LogoSign';
 
 const SidebarWrapper = styled(Box)(
   ({ theme }) => `
@@ -26,7 +24,16 @@ const SidebarWrapper = styled(Box)(
         position: relative;
         z-index: 7;
         height: 100%;
-        padding-bottom: 68px;
+        padding-bottom: 20px;
+`
+);
+
+const LogoWrapper = styled(Box)(
+  ({ theme }) => `
+        display: flex;
+        align-items: center;
+        gap: ${theme.spacing(1)};
+        padding: ${theme.spacing(0, 2)};
 `
 );
 
@@ -34,6 +41,14 @@ function Sidebar() {
   const { sidebarToggle, toggleSidebar } = useContext(SidebarContext);
   const closeSidebar = () => toggleSidebar();
   const theme = useTheme();
+
+  const LogoComponent = () => (
+    <LogoWrapper>
+      <Typography variant="h4" sx={{ color: theme.colors.alpha.trueWhite[100] }}>
+        🍃 Leaf Flow
+      </Typography>
+    </LogoWrapper>
+  );
 
   return (
     <>
@@ -55,43 +70,17 @@ function Sidebar() {
         }}
       >
         <Scrollbar>
-          <Box mt={3}>
-            <Box
-              mx={2}
-              sx={{
-                width: 52
-              }}
-            >
-              <Logo />
-            </Box>
+          <Box mt={3} mb={2}>
+            <LogoComponent />
           </Box>
           <Divider
             sx={{
-              mt: theme.spacing(3),
               mx: theme.spacing(2),
               background: theme.colors.alpha.trueWhite[10]
             }}
           />
           <SidebarMenu />
         </Scrollbar>
-        <Divider
-          sx={{
-            background: theme.colors.alpha.trueWhite[10]
-          }}
-        />
-        <Box p={2}>
-          <Button
-            href="https://bloomui.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            variant="contained"
-            color="warning"
-            size="small"
-            fullWidth
-          >
-            Upgrade to PRO
-          </Button>
-        </Box>
       </SidebarWrapper>
       <Drawer
         sx={{
@@ -112,19 +101,11 @@ function Sidebar() {
           }}
         >
           <Scrollbar>
-            <Box mt={3}>
-              <Box
-                mx={2}
-                sx={{
-                  width: 52
-                }}
-              >
-                <Logo />
-              </Box>
+            <Box mt={3} mb={2}>
+              <LogoComponent />
             </Box>
             <Divider
               sx={{
-                mt: theme.spacing(3),
                 mx: theme.spacing(2),
                 background: theme.colors.alpha.trueWhite[10]
               }}

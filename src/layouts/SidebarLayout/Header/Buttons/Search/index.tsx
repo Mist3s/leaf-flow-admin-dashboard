@@ -1,32 +1,33 @@
-import { forwardRef, Ref, useState, ReactElement, ChangeEvent } from 'react';
+import { forwardRef, Ref, useState, ReactElement, ChangeEvent, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Avatar,
-  Link,
   Box,
-  Button,
+  CircularProgress,
   Divider,
   IconButton,
   InputAdornment,
-  lighten,
   List,
   ListItem,
   ListItemAvatar,
+  ListItemText,
   TextField,
-  Theme,
   Tooltip,
   Typography,
   Dialog,
   DialogContent,
-  DialogTitle,
   Slide,
-  Hidden
+  Chip
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { TransitionProps } from '@mui/material/transitions';
 import SearchTwoToneIcon from '@mui/icons-material/SearchTwoTone';
-import FindInPageTwoToneIcon from '@mui/icons-material/FindInPageTwoTone';
-
-import ChevronRightTwoToneIcon from '@mui/icons-material/ChevronRightTwoTone';
+import InventoryTwoToneIcon from '@mui/icons-material/InventoryTwoTone';
+import ShoppingCartTwoToneIcon from '@mui/icons-material/ShoppingCartTwoTone';
+import PeopleTwoToneIcon from '@mui/icons-material/PeopleTwoTone';
+import CategoryTwoToneIcon from '@mui/icons-material/CategoryTwoTone';
+import { productsService, ordersService, usersService, categoriesService } from 'src/api';
+import { Product, Order, User, Category } from 'src/models';
 
 const Transition = forwardRef(function Transition(
   props: TransitionProps & { children: ReactElement<any, any> },
@@ -57,30 +58,82 @@ const SearchInputWrapper = styled(TextField)(
 `
 );
 
-const DialogTitleWrapper = styled(DialogTitle)(
+const DialogTitleWrapper = styled(Box)(
   ({ theme }) => `
-    background: ${theme.colors.alpha.black[5]};
     padding: ${theme.spacing(3)}
 `
 );
 
+interface SearchResults {
+  products: Product[];
+  orders: Order[];
+  users: User[];
+  categories: Category[];
+}
+
 function HeaderSearch() {
-  const [openSearchResults, setOpenSearchResults] = useState(false);
+  const navigate = useNavigate();
   const [searchValue, setSearchValue] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState<SearchResults>({
+    products: [],
+    orders: [],
+    users: [],
+    categories: []
+  });
+  const [hasSearched, setHasSearched] = useState(false);
+  const [open, setOpen] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const performSearch = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setResults({ products: [], orders: [], users: [], categories: [] });
+      setHasSearched(false);
+      return;
+    }
+
+    setLoading(true);
+    setHasSearched(true);
+
+    try {
+      const [productsRes, ordersRes, usersRes, categoriesRes] = await Promise.allSettled([
+        productsService.list({ search: query, limit: 5 }),
+        ordersService.list({ search: query, limit: 5 }),
+        usersService.list({ search: query, limit: 5 }),
+        categoriesService.list()
+      ]);
+
+      const products = productsRes.status === 'fulfilled' ? productsRes.value.items : [];
+      const orders = ordersRes.status === 'fulfilled' ? ordersRes.value.items : [];
+      const users = usersRes.status === 'fulfilled' ? usersRes.value.items : [];
+      const allCategories = categoriesRes.status === 'fulfilled' ? categoriesRes.value : [];
+      
+      // Filter categories by query
+      const categories = allCategories.filter(
+        c => c.label.toLowerCase().includes(query.toLowerCase()) ||
+             c.slug.toLowerCase().includes(query.toLowerCase())
+      ).slice(0, 5);
+
+      setResults({ products, orders, users, categories });
+    } catch (err) {
+      console.error('Search error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const handleSearchChange = (event: ChangeEvent<HTMLInputElement>): void => {
-    setSearchValue(event.target.value);
-
-    if (event.target.value) {
-      if (!openSearchResults) {
-        setOpenSearchResults(true);
-      }
-    } else {
-      setOpenSearchResults(false);
+    const value = event.target.value;
+    setSearchValue(value);
+    
+    // Debounce search
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
+    searchTimeoutRef.current = setTimeout(() => {
+      performSearch(value);
+    }, 300);
   };
-
-  const [open, setOpen] = useState(false);
 
   const handleClickOpen = () => {
     setOpen(true);
@@ -88,11 +141,22 @@ function HeaderSearch() {
 
   const handleClose = () => {
     setOpen(false);
+    setSearchValue('');
+    setResults({ products: [], orders: [], users: [], categories: [] });
+    setHasSearched(false);
   };
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    handleClose();
+  };
+
+  const totalResults = results.products.length + results.orders.length + 
+                       results.users.length + results.categories.length;
 
   return (
     <>
-      <Tooltip arrow title="Search">
+      <Tooltip arrow title="Поиск">
         <IconButton color="primary" onClick={handleClickOpen}>
           <SearchTwoToneIcon />
         </IconButton>
@@ -102,7 +166,7 @@ function HeaderSearch() {
         open={open}
         TransitionComponent={Transition}
         keepMounted
-        maxWidth="md"
+        maxWidth="sm"
         fullWidth
         scroll="paper"
         onClose={handleClose}
@@ -115,160 +179,163 @@ function HeaderSearch() {
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchTwoToneIcon />
+                  {loading ? <CircularProgress size={20} /> : <SearchTwoToneIcon />}
                 </InputAdornment>
               )
             }}
-            placeholder="Search terms here..."
+            placeholder="Поиск продуктов, заказов, пользователей..."
             fullWidth
-            label="Search"
+            label="Поиск"
           />
         </DialogTitleWrapper>
         <Divider />
 
-        {openSearchResults && (
+        {hasSearched && (
           <DialogContent>
-            <Box
-              sx={{ pt: 0, pb: 1 }}
-              display="flex"
-              justifyContent="space-between"
-            >
-              <Typography variant="body2" component="span">
-                Search results for{' '}
-                <Typography
-                  sx={{ fontWeight: 'bold' }}
-                  variant="body1"
-                  component="span"
-                >
-                  {searchValue}
+            {totalResults === 0 && !loading ? (
+              <Box py={3} textAlign="center">
+                <Typography variant="body1" color="text.secondary">
+                  По запросу "{searchValue}" ничего не найдено
                 </Typography>
-              </Typography>
-              <Link href="#" variant="body2" underline="hover">
-                Advanced search
-              </Link>
-            </Box>
-            <Divider sx={{ my: 1 }} />
-            <List disablePadding>
-              <ListItem button>
-                <Hidden smDown>
-                  <ListItemAvatar>
-                    <Avatar
-                      sx={{
-                        background: (theme: Theme) =>
-                          theme.palette.secondary.main
-                      }}
-                    >
-                      <FindInPageTwoToneIcon />
-                    </Avatar>
-                  </ListItemAvatar>
-                </Hidden>
-                <Box flex="1">
-                  <Box display="flex" justifyContent="space-between">
-                    <Link
-                      href="#"
-                      underline="hover"
-                      sx={{ fontWeight: 'bold' }}
-                      variant="body2"
-                    >
-                      Dashboard for Healthcare Platform
-                    </Link>
-                  </Box>
-                  <Typography
-                    component="span"
-                    variant="body2"
-                    sx={{
-                      color: (theme: Theme) =>
-                        lighten(theme.palette.secondary.main, 0.5)
-                    }}
-                  >
-                    This page contains all the necessary information for
-                    managing all hospital staff.
-                  </Typography>
-                </Box>
-                <ChevronRightTwoToneIcon />
-              </ListItem>
-              <Divider sx={{ my: 1 }} component="li" />
-              <ListItem button>
-                <Hidden smDown>
-                  <ListItemAvatar>
-                    <Avatar
-                      sx={{
-                        background: (theme: Theme) =>
-                          theme.palette.secondary.main
-                      }}
-                    >
-                      <FindInPageTwoToneIcon />
-                    </Avatar>
-                  </ListItemAvatar>
-                </Hidden>
-                <Box flex="1">
-                  <Box display="flex" justifyContent="space-between">
-                    <Link
-                      href="#"
-                      underline="hover"
-                      sx={{ fontWeight: 'bold' }}
-                      variant="body2"
-                    >
-                      Example Projects Application
-                    </Link>
-                  </Box>
-                  <Typography
-                    component="span"
-                    variant="body2"
-                    sx={{
-                      color: (theme: Theme) =>
-                        lighten(theme.palette.secondary.main, 0.5)
-                    }}
-                  >
-                    This is yet another search result pointing to a app page.
-                  </Typography>
-                </Box>
-                <ChevronRightTwoToneIcon />
-              </ListItem>
-              <Divider sx={{ my: 1 }} component="li" />
-              <ListItem button>
-                <Hidden smDown>
-                  <ListItemAvatar>
-                    <Avatar
-                      sx={{
-                        background: (theme: Theme) =>
-                          theme.palette.secondary.main
-                      }}
-                    >
-                      <FindInPageTwoToneIcon />
-                    </Avatar>
-                  </ListItemAvatar>
-                </Hidden>
-                <Box flex="1">
-                  <Box display="flex" justifyContent="space-between">
-                    <Link
-                      href="#"
-                      underline="hover"
-                      sx={{ fontWeight: 'bold' }}
-                      variant="body2"
-                    >
-                      Search Results Page
-                    </Link>
-                  </Box>
-                  <Typography
-                    component="span"
-                    variant="body2"
-                    sx={{
-                      color: (theme: Theme) =>
-                        lighten(theme.palette.secondary.main, 0.5)
-                    }}
-                  >
-                    Choose if you would like to show or not this typography
-                    section here...
-                  </Typography>
-                </Box>
-                <ChevronRightTwoToneIcon />
-              </ListItem>
-            </List>
-            <Divider sx={{ mt: 1, mb: 2 }} />
-            <Box sx={{ textAlign: 'center' }}>
-              <Button color="primary">View all search results</Button>
-            </Box>
+              </Box>
+            ) : (
+              <>
+                {/* Products */}
+                {results.products.length > 0 && (
+                  <>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                      Продукты
+                    </Typography>
+                    <List disablePadding>
+                      {results.products.map((product) => (
+                        <ListItem
+                          key={product.id}
+                          button
+                          onClick={() => handleNavigate(`/admin/products/${product.id}`)}
+                          sx={{ borderRadius: 1, mb: 0.5 }}
+                        >
+                          <ListItemAvatar>
+                            <Avatar 
+                              variant="rounded" 
+                              src={product.image}
+                              sx={{ bgcolor: 'primary.main' }}
+                            >
+                              <InventoryTwoToneIcon />
+                            </Avatar>
+                          </ListItemAvatar>
+                          <ListItemText
+                            primary={product.name}
+                            secondary={
+                              <Box display="flex" gap={1} alignItems="center">
+                                <Chip size="small" label={product.category_slug} />
+                                {!product.is_active && (
+                                  <Chip size="small" label="Неактивен" color="warning" />
+                                )}
+                              </Box>
+                            }
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                    <Divider sx={{ my: 2 }} />
+                  </>
+                )}
+
+                {/* Orders */}
+                {results.orders.length > 0 && (
+                  <>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                      Заказы
+                    </Typography>
+                    <List disablePadding>
+                      {results.orders.map((order) => (
+                        <ListItem
+                          key={order.id}
+                          button
+                          onClick={() => handleNavigate(`/admin/orders/${order.id}`)}
+                          sx={{ borderRadius: 1, mb: 0.5 }}
+                        >
+                          <ListItemAvatar>
+                            <Avatar sx={{ bgcolor: 'info.main' }}>
+                              <ShoppingCartTwoToneIcon />
+                            </Avatar>
+                          </ListItemAvatar>
+                          <ListItemText
+                            primary={`#${order.id.slice(-8).toUpperCase()}`}
+                            secondary={
+                              <Box display="flex" gap={1} alignItems="center">
+                                <span>{order.customer_name}</span>
+                                <Chip size="small" label={`${order.total} ₽`} />
+                              </Box>
+                            }
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                    <Divider sx={{ my: 2 }} />
+                  </>
+                )}
+
+                {/* Users */}
+                {results.users.length > 0 && (
+                  <>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                      Пользователи
+                    </Typography>
+                    <List disablePadding>
+                      {results.users.map((user) => (
+                        <ListItem
+                          key={user.id}
+                          button
+                          onClick={() => handleNavigate(`/admin/users/${user.id}`)}
+                          sx={{ borderRadius: 1, mb: 0.5 }}
+                        >
+                          <ListItemAvatar>
+                            <Avatar src={user.photo_url || undefined} sx={{ bgcolor: 'success.main' }}>
+                              <PeopleTwoToneIcon />
+                            </Avatar>
+                          </ListItemAvatar>
+                          <ListItemText
+                            primary={`${user.first_name} ${user.last_name || ''}`}
+                            secondary={user.username ? `@${user.username}` : user.email}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                    <Divider sx={{ my: 2 }} />
+                  </>
+                )}
+
+                {/* Categories */}
+                {results.categories.length > 0 && (
+                  <>
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                      Категории
+                    </Typography>
+                    <List disablePadding>
+                      {results.categories.map((category) => (
+                        <ListItem
+                          key={category.slug}
+                          button
+                          onClick={() => handleNavigate('/admin/categories')}
+                          sx={{ borderRadius: 1, mb: 0.5 }}
+                        >
+                          <ListItemAvatar>
+                            <Avatar sx={{ bgcolor: 'warning.main' }}>
+                              <CategoryTwoToneIcon />
+                            </Avatar>
+                          </ListItemAvatar>
+                          <ListItemText
+                            primary={category.label}
+                            secondary={category.slug}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </>
+                )}
+              </>
+            )}
           </DialogContent>
         )}
       </DialogWrapper>
