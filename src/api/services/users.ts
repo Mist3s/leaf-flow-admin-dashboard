@@ -1,11 +1,7 @@
 import apiClient from '../client';
-import { User, UserList, UserUpdate } from '../../models';
+import { User, UserList, UserUpdate, SearchParams } from '../../models';
 
-interface UsersParams {
-  search?: string;
-  limit?: number;
-  offset?: number;
-}
+export type UsersParams = SearchParams;
 
 export const usersService = {
   list: async (params?: UsersParams): Promise<UserList> => {

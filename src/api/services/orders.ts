@@ -1,12 +1,9 @@
 import apiClient from '../client';
-import { Order, OrderList, OrderUpdate, OrderStatusUpdate } from '../../models';
+import { Order, OrderList, OrderUpdate, OrderStatusUpdate, SearchParams } from '../../models';
 
-interface OrdersParams {
-  search?: string;
+export interface OrdersParams extends SearchParams {
   status?: string;
   user_id?: number;
-  limit?: number;
-  offset?: number;
 }
 
 export const ordersService = {

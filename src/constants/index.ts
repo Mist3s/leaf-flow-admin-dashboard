@@ -59,12 +59,12 @@ export const ROUTES = {
   DASHBOARD: '/admin/dashboard',
   PRODUCTS: '/admin/products',
   PRODUCT_CREATE: '/admin/products/create',
-  PRODUCT_EDIT: (id: string) => `/admin/products/${id}`,
+  PRODUCT_EDIT: (id: string | number) => `/admin/products/${id}`,
   ORDERS: '/admin/orders',
-  ORDER_DETAIL: (id: string) => `/admin/orders/${id}`,
+  ORDER_DETAIL: (id: string | number) => `/admin/orders/${id}`,
   CATEGORIES: '/admin/categories',
   USERS: '/admin/users',
-  USER_DETAIL: (id: number) => `/admin/users/${id}`,
+  USER_DETAIL: (id: string | number) => `/admin/users/${id}`,
   REVIEWS: '/admin/reviews',
 } as const;
 

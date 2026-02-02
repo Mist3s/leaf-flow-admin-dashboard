@@ -280,6 +280,21 @@ export interface AttributeDetail {
   product_type_codes?: string[];
 }
 
+// ================== API COMMON ==================
+export interface PaginationParams {
+  limit?: number;
+  offset?: number;
+}
+
+export interface SearchParams extends PaginationParams {
+  search?: string;
+}
+
+export interface PaginatedResponse<T> {
+  total: number;
+  items: T[];
+}
+
 // ================== API RESPONSES ==================
 export interface ErrorResponse {
   message: string;

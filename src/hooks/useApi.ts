@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { extractErrorMessage } from 'src/utils';
 
 interface UseApiState<T> {
   data: T | null;
@@ -28,12 +29,8 @@ export function useApi<T, P extends any[] = []>(
         const result = await apiFunction(...params);
         setState({ data: result, loading: false, error: null });
         return result;
-      } catch (err: any) {
-        const errorMessage =
-          err.response?.data?.message ||
-          err.response?.data?.detail?.[0]?.msg ||
-          err.message ||
-          'Произошла ошибка';
+      } catch (err) {
+        const errorMessage = extractErrorMessage(err);
         setState((prev) => ({ ...prev, loading: false, error: errorMessage }));
         return null;
       }
@@ -74,12 +71,8 @@ export function useMutation<T, P extends any[] = []>(
         const result = await mutationFn(...params);
         setLoading(false);
         return result;
-      } catch (err: any) {
-        const errorMessage =
-          err.response?.data?.message ||
-          err.response?.data?.detail?.[0]?.msg ||
-          err.message ||
-          'Произошла ошибка';
+      } catch (err) {
+        const errorMessage = extractErrorMessage(err);
         setError(errorMessage);
         setLoading(false);
         return null;

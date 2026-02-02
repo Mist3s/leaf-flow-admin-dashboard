@@ -1,28 +1,53 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
-import {
-  Container,
-  Grid,
-  Typography,
-  Box,
-  CircularProgress,
-  Alert
-} from '@mui/material';
-import PageTitleWrapper from 'src/components/PageTitleWrapper';
+import { Container, Alert } from '@mui/material';
+import PageHeader from 'src/components/PageHeader';
+import LoadingState from 'src/components/LoadingState';
 import OrdersTable from './OrdersTable';
 import { ordersService } from 'src/api';
 import { Order } from 'src/models';
+import { PAGINATION } from 'src/constants';
+
+interface OrdersFilters {
+  search: string;
+  status: string;
+}
 
 function OrdersList() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  
+  // Pagination
+  const [page, setPage] = useState(0);
+  const [limit, setLimit] = useState(PAGINATION.DEFAULT_PAGE_SIZE);
+  
+  // Filters
+  const [filters, setFilters] = useState<OrdersFilters>({
+    search: '',
+    status: 'all',
+  });
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await ordersService.list({ limit: 100 });
+      
+      const params: any = {
+        limit,
+        offset: page * limit,
+      };
+      
+      if (filters.search) {
+        params.search = filters.search;
+      }
+      if (filters.status !== 'all') {
+        params.status = filters.status;
+      }
+      
+      const response = await ordersService.list(params);
       setOrders(response.items);
+      setTotal(response.total);
       setError('');
     } catch (err: any) {
       setError('Ошибка загрузки заказов');
@@ -30,41 +55,52 @@ function OrdersList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, filters]);
 
   useEffect(() => {
     fetchOrders();
+  }, [fetchOrders]);
+
+  const handleFiltersChange = useCallback((newFilters: OrdersFilters) => {
+    setFilters(newFilters);
+    setPage(0);
   }, []);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+  }, []);
+
+  const handleLimitChange = useCallback((newLimit: number) => {
+    setLimit(newLimit);
+    setPage(0);
+  }, []);
+
+  if (loading && orders.length === 0) {
+    return <LoadingState message="Загрузка заказов..." />;
+  }
 
   return (
     <>
       <Helmet>
         <title>Заказы - Leaf Flow Admin</title>
       </Helmet>
-      <PageTitleWrapper>
-        <Box>
-          <Typography variant="h3" component="h3" gutterBottom>
-            Заказы
-          </Typography>
-          <Typography variant="subtitle2">
-            Управление заказами клиентов
-          </Typography>
-        </Box>
-      </PageTitleWrapper>
+      <PageHeader
+        title="Заказы"
+        subtitle="Управление заказами клиентов"
+      />
       <Container maxWidth="lg">
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-            {loading ? (
-              <Box display="flex" justifyContent="center" py={5}>
-                <CircularProgress />
-              </Box>
-            ) : error ? (
-              <Alert severity="error">{error}</Alert>
-            ) : (
-              <OrdersTable orders={orders} />
-            )}
-          </Grid>
-        </Grid>
+        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        <OrdersTable 
+          orders={orders}
+          total={total}
+          page={page}
+          limit={limit}
+          filters={filters}
+          loading={loading}
+          onFiltersChange={handleFiltersChange}
+          onPageChange={handlePageChange}
+          onLimitChange={handleLimitChange}
+        />
       </Container>
     </>
   );

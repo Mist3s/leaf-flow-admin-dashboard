@@ -1,61 +1,189 @@
-<p align="center">
-    <a href="https://bloomui.com" title="BloomUI.com">
-        <img src="https://bloomui.s3.us-east-2.amazonaws.com/tokyo-logo.png" alt="Tokyo Free White Typescript React Admin Dashboard">
-    </a>
-</p>
-<h1 align="center">
-    <b>Tokyo Free White Typescript React Admin Dashboard</b>
-    <br>
-    <a href="https://twitter.com/intent/tweet?url=https://bloomui.com&text=I like this React admin dashboard">
-        <img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social" />
-    </a>
-</h1>
-<div align="center">
+# 🍃 Leaf Flow Admin Dashboard
 
-![version](https://img.shields.io/badge/version-2.0.0-blue.svg)
+Административная панель для управления чайным магазином Leaf Flow.
+
+![version](https://img.shields.io/badge/version-1.0.0-green.svg)
 ![license](https://img.shields.io/badge/license-MIT-blue.svg)
-
-<a href="https://bloomui.com/product/tokyo-free-white-react-typescript-material-ui-admin-dashboard/"><img src="https://bloomui.s3.us-east-2.amazonaws.com/tokyo-free-white-react-typescript-material-ui-admin-dashboard.jpg" /></a>
-</div>
-
-<a href="https://bloomui.com/product/tokyo-free-white-react-typescript-material-ui-admin-dashboard/"><h3>Free React Typescript Admin Dashboard Template built with Material-UI</h3></a>
-<p>
-    This free and open source admin dashboard template is built for React and it’s bootstrapped from Facebook’s create-react-app. All NPM dependencies are up to date and it contains multiple fully customized components based on the popular frontend components framework, Material-UI.
-</p>
-<p>
-Tokyo Free White Typescript Dashboard features a nice classic light & clean design and color scheme.
-</p>
-<p>
-You can customize the color scheme and style by editing a single variables files. This Typescript admin dashboard doesn’t use SCSS stylesheets but the more modern approach with styled-components.
-</p>
-<p>
-We’ve included a few page examples for most used user flows that will give you a solid base for getting started with your new project’s development. With very light modifications you can even integrate Tokyo Free White Typescript Dashboard into existing projects giving them a much deserved makeover.
-</p>
-
----
-<h3>Updrade to PRO</h3>
-
-<p>If you're looking for more features like translations, complex user flows, redux examples and more,  we recommend taking a look at the premium version (Tokyo White Typescript Dashboard) on <a href="https://bloomui.com">bloomui.com</a></p>
+![react](https://img.shields.io/badge/React-17.0.2-61DAFB.svg)
+![typescript](https://img.shields.io/badge/TypeScript-4.7.3-3178C6.svg)
+![mui](https://img.shields.io/badge/MUI-5.8.2-007FFF.svg)
 
 ---
 
-<h2>
-    Quick Start
-</h2>
-<ol>
-    <li>Make sure you have the latest stable versions for Node.js and NPM installed</li>
-    <li>Clone repository: <code>git clone https://github.com/bloomui/tokyo-free-white-react-admin-dashboard.git</code></li>
-    <li>Install dependencies: Run <code>npm install</code> inside the project folder</li>
-    <li>Start dev server: After the install finishes, run <code>npm run start</code>. A browser window will open on http://localhost:3000 where you''ll see the live preview</li>
-</ol>
+## 📋 Описание
+
+Полнофункциональная админ-панель для управления интернет-магазином чая. Включает управление товарами, заказами, пользователями, категориями и отзывами.
+
+### Основные возможности:
+
+- 📦 **Товары** — создание, редактирование, управление вариантами и изображениями
+- 🛒 **Заказы** — просмотр и редактирование заказов, управление составом
+- 👥 **Пользователи** — просмотр информации о клиентах
+- 📁 **Категории** — управление категориями товаров
+- ⭐ **Отзывы** — модерация отзывов клиентов
+- 🔍 **Глобальный поиск** — быстрый поиск по всем разделам
+- 📱 **Мобильная адаптация** — полностью адаптивный интерфейс
 
 ---
 
-<h2>
-    Technical Support
-</h2>
-<p>
-    You can open a support ticket by sending an email here: <a href="mailto:support@bloomui.freshdesk.com" title="Open Support Ticket">
-        support@bloomui.freshdesk.com
-    </a>
-</p>
+## 🛠️ Технологии
+
+| Технология | Версия | Описание |
+|------------|--------|----------|
+| React | 17.0.2 | UI библиотека |
+| TypeScript | 4.7.3 | Типизация |
+| Material-UI | 5.8.2 | Компоненты UI |
+| React Router | 6.3.0 | Маршрутизация |
+| Axios | 1.13.4 | HTTP клиент |
+| React Query | 3.39.3 | Управление состоянием запросов |
+| date-fns | 2.28.0 | Работа с датами |
+| ApexCharts | 3.35.3 | Графики и диаграммы |
+
+---
+
+## 📁 Структура проекта
+
+```
+src/
+├── api/                    # API клиент и сервисы
+│   ├── client.ts           # Axios клиент с интерцепторами
+│   ├── config.ts           # Конфигурация API
+│   └── services/           # Сервисы для работы с API
+│       ├── auth.ts
+│       ├── categories.ts
+│       ├── images.ts
+│       ├── orders.ts
+│       ├── products.ts
+│       ├── reviews.ts
+│       └── users.ts
+│
+├── components/             # Переиспользуемые компоненты
+│   ├── ConfirmDialog/      # Диалог подтверждения
+│   ├── DataTable/          # Универсальная таблица с поиском и пагинацией
+│   ├── EmptyState/         # Состояние "нет данных"
+│   ├── Label/              # Цветные метки статусов
+│   ├── LoadingState/       # Состояние загрузки
+│   ├── NotificationAlert/  # Уведомления
+│   ├── PageHeader/         # Заголовок страницы
+│   └── ...
+│
+├── constants/              # Константы приложения
+│   └── index.ts            # Статусы, типы доставки, стили
+│
+├── content/                # Страницы приложения
+│   ├── admin/              # Админ-страницы
+│   │   ├── Categories/
+│   │   ├── Dashboard/
+│   │   ├── Orders/
+│   │   ├── Products/
+│   │   ├── Reviews/
+│   │   └── Users/
+│   └── pages/              # Публичные страницы
+│       ├── Auth/Login/
+│       └── Status/
+│
+├── contexts/               # React контексты
+│   ├── AuthContext.tsx     # Аутентификация
+│   └── SidebarContext.tsx  # Состояние сайдбара
+│
+├── hooks/                  # Кастомные хуки
+│   ├── useApi.ts           # Работа с API
+│   ├── useAuth.ts          # Аутентификация
+│   ├── useConfirmDialog.ts # Диалог подтверждения
+│   └── useNotification.ts  # Уведомления
+│
+├── layouts/                # Лейауты
+│   ├── BaseLayout/         # Базовый лейаут
+│   └── SidebarLayout/      # Лейаут с сайдбаром
+│
+├── models/                 # TypeScript модели
+│   └── index.ts            # Интерфейсы данных из API
+│
+├── theme/                  # Тема MUI
+│   ├── base.ts             # Базовые типы темы
+│   ├── schemes/
+│   │   └── PureLightTheme.ts
+│   └── ThemeProvider.tsx
+│
+├── utils/                  # Утилиты
+│   ├── formatters.ts       # Форматирование (цены, даты, телефоны)
+│   └── index.ts
+│
+├── App.tsx                 # Корневой компонент
+├── router.tsx              # Конфигурация маршрутов
+└── index.tsx               # Точка входа
+```
+
+---
+
+## 🚀 Быстрый старт
+
+### Требования
+
+- Node.js >= 16.x
+- npm >= 8.x
+
+### Установка
+
+```bash
+# Клонирование репозитория
+git clone <repository-url>
+cd leaf-flow-admin-dashboard
+
+# Установка зависимостей
+npm install
+
+# Запуск dev-сервера
+npm start
+```
+
+Приложение откроется на http://localhost:3000
+
+### Сборка для продакшена
+
+```bash
+npm run build
+```
+
+---
+
+## ⚙️ Конфигурация
+
+### API
+
+Настройки API находятся в `src/api/config.ts`:
+
+```typescript
+export const API_CONFIG = {
+  baseURL: 'https://app-stage.zavarka39.ru/api',
+  // ...
+};
+```
+
+### Аутентификация
+
+Админ-панель использует статический токен для аутентификации. Токен вводится на странице логина и проверяется через запрос к API категорий.
+
+---
+
+## 📜 Скрипты
+
+| Команда | Описание |
+|---------|----------|
+| `npm start` | Запуск dev-сервера |
+| `npm run build` | Сборка для продакшена |
+| `npm run lint` | Проверка кода ESLint |
+| `npm run lint:fix` | Автоисправление ESLint |
+| `npm run format` | Форматирование Prettier |
+
+---
+
+## 📄 Лицензия
+
+MIT License
+
+---
+
+## 🙏 Благодарности
+
+Проект создан на основе шаблона [Tokyo Free White React Admin Dashboard](https://bloomui.com).

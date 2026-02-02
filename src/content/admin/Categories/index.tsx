@@ -1,17 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import {
   Container,
-  Button,
   Typography,
   Box,
   Alert,
   IconButton,
   Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   TextField,
   Stack,
   Chip,
@@ -24,9 +19,24 @@ import DeleteTwoToneIcon from '@mui/icons-material/DeleteTwoTone';
 import CategoryTwoToneIcon from '@mui/icons-material/CategoryTwoTone';
 import PageHeader from 'src/components/PageHeader';
 import LoadingState from 'src/components/LoadingState';
+import ConfirmDialog from 'src/components/ConfirmDialog';
+import FormDialog from 'src/components/FormDialog';
 import DataTable, { DataTableColumn } from 'src/components/DataTable';
+import { useConfirmDialog, useFormDialog } from 'src/hooks';
 import { categoriesService } from 'src/api';
 import { Category, CategoryCreate, CategoryUpdate } from 'src/models';
+
+interface CategoryFormData {
+  slug: string;
+  label: string;
+  sort_order: number;
+}
+
+const defaultFormData: CategoryFormData = {
+  slug: '',
+  label: '',
+  sort_order: 0,
+};
 
 function CategoriesList() {
   const theme = useTheme();
@@ -34,12 +44,9 @@ function CategoriesList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [formData, setFormData] = useState({ slug: '', label: '', sort_order: 0 });
-  const [saving, setSaving] = useState(false);
+  const { confirmDialog, openConfirmDialog, closeConfirmDialog } = useConfirmDialog();
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       setLoading(true);
       const data = await categoriesService.list();
@@ -50,11 +57,32 @@ function CategoriesList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const formDialog = useFormDialog<CategoryFormData, Category>(
+    {
+      defaultValues: { ...defaultFormData, sort_order: categories.length },
+      onSubmit: async (data, isEditing) => {
+        if (isEditing && formDialog.editingItem) {
+          const updateData: CategoryUpdate = { label: data.label, sort_order: data.sort_order };
+          await categoriesService.update(formDialog.editingItem.slug, updateData);
+        } else {
+          const createData: CategoryCreate = data;
+          await categoriesService.create(createData);
+        }
+      },
+      onSuccess: fetchCategories,
+    },
+    (category) => ({
+      slug: category.slug,
+      label: category.label,
+      sort_order: category.sort_order,
+    })
+  );
 
   useEffect(() => {
     fetchCategories();
-  }, []);
+  }, [fetchCategories]);
 
   const filteredCategories = useMemo(() => {
     return categories.filter((category) => 
@@ -63,52 +91,22 @@ function CategoriesList() {
     );
   }, [categories, searchTerm]);
 
-  const handleOpenDialog = (category?: Category) => {
-    if (category) {
-      setEditingCategory(category);
-      setFormData({ slug: category.slug, label: category.label, sort_order: category.sort_order });
-    } else {
-      setEditingCategory(null);
-      setFormData({ slug: '', label: '', sort_order: categories.length });
-    }
-    setDialogOpen(true);
-  };
-
-  const handleCloseDialog = () => {
-    setDialogOpen(false);
-    setEditingCategory(null);
-    setFormData({ slug: '', label: '', sort_order: 0 });
-  };
-
-  const handleSubmit = async () => {
-    setSaving(true);
-    try {
-      if (editingCategory) {
-        const updateData: CategoryUpdate = { label: formData.label, sort_order: formData.sort_order };
-        await categoriesService.update(editingCategory.slug, updateData);
-      } else {
-        const createData: CategoryCreate = formData;
-        await categoriesService.create(createData);
+  const handleDelete = useCallback((slug: string, label: string) => {
+    openConfirmDialog({
+      title: 'Удалить категорию',
+      message: `Вы уверены, что хотите удалить категорию "${label}"?`,
+      confirmText: 'Удалить',
+      confirmColor: 'error',
+      onConfirm: async () => {
+        try {
+          await categoriesService.delete(slug);
+          fetchCategories();
+        } catch (err) {
+          setError('Ошибка удаления категории');
+        }
       }
-      handleCloseDialog();
-      fetchCategories();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Ошибка сохранения');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (slug: string) => {
-    if (window.confirm('Вы уверены, что хотите удалить эту категорию?')) {
-      try {
-        await categoriesService.delete(slug);
-        fetchCategories();
-      } catch (err) {
-        setError('Ошибка удаления категории');
-      }
-    }
-  };
+    });
+  }, [openConfirmDialog, fetchCategories]);
 
   const columns: DataTableColumn<Category>[] = [
     {
@@ -166,7 +164,7 @@ function CategoriesList() {
               size="small"
               onClick={(e) => {
                 e.stopPropagation();
-                handleOpenDialog(category);
+                formDialog.open(category);
               }}
               sx={{
                 backgroundColor: alpha(theme.palette.primary.main, 0.1),
@@ -181,7 +179,7 @@ function CategoriesList() {
               size="small"
               onClick={(e) => {
                 e.stopPropagation();
-                handleDelete(category.slug);
+                handleDelete(category.slug, category.label);
               }}
               sx={{
                 backgroundColor: alpha(theme.palette.error.main, 0.1),
@@ -230,10 +228,10 @@ function CategoriesList() {
         />
       </Box>
       <Box display="flex" justifyContent="flex-end" gap={0.5}>
-        <IconButton size="small" onClick={() => handleOpenDialog(category)}>
+        <IconButton size="small" onClick={() => formDialog.open(category)}>
           <EditTwoToneIcon fontSize="small" color="primary" />
         </IconButton>
-        <IconButton size="small" onClick={() => handleDelete(category.slug)}>
+        <IconButton size="small" onClick={() => handleDelete(category.slug, category.label)}>
           <DeleteTwoToneIcon fontSize="small" color="error" />
         </IconButton>
       </Box>
@@ -255,7 +253,7 @@ function CategoriesList() {
         action={{
           label: 'Добавить категорию',
           icon: <AddTwoToneIcon />,
-          onClick: () => handleOpenDialog(),
+          onClick: () => formDialog.open(),
         }}
       />
       <Container maxWidth="lg">
@@ -272,49 +270,55 @@ function CategoriesList() {
         />
       </Container>
 
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          <Typography variant="h6" fontWeight={600}>
-            {editingCategory ? 'Редактировать категорию' : 'Новая категория'}
-          </Typography>
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 1 }}>
-            <TextField
-              fullWidth
-              label="Slug"
-              value={formData.slug}
-              onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-              disabled={!!editingCategory}
-              margin="normal"
-              required
-              helperText="Уникальный идентификатор категории"
-            />
-            <TextField
-              fullWidth
-              label="Название"
-              value={formData.label}
-              onChange={(e) => setFormData({ ...formData, label: e.target.value })}
-              margin="normal"
-              required
-            />
-            <TextField
-              fullWidth
-              type="number"
-              label="Порядок сортировки"
-              value={formData.sort_order}
-              onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })}
-              margin="normal"
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={handleCloseDialog}>Отмена</Button>
-          <Button onClick={handleSubmit} variant="contained" disabled={saving}>
-            {saving ? 'Сохранение...' : 'Сохранить'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <FormDialog
+        open={formDialog.isOpen}
+        title={formDialog.isEditing ? 'Редактировать категорию' : 'Новая категория'}
+        onClose={formDialog.close}
+        onSubmit={formDialog.handleSubmit}
+        isLoading={formDialog.isLoading}
+      >
+        {formDialog.error && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={formDialog.clearError}>
+            {formDialog.error}
+          </Alert>
+        )}
+        <TextField
+          fullWidth
+          label="Slug"
+          value={formDialog.formData.slug}
+          onChange={(e) => formDialog.updateField('slug', e.target.value)}
+          disabled={formDialog.isEditing}
+          margin="normal"
+          required
+          helperText="Уникальный идентификатор категории"
+        />
+        <TextField
+          fullWidth
+          label="Название"
+          value={formDialog.formData.label}
+          onChange={(e) => formDialog.updateField('label', e.target.value)}
+          margin="normal"
+          required
+        />
+        <TextField
+          fullWidth
+          type="number"
+          label="Порядок сортировки"
+          value={formDialog.formData.sort_order}
+          onChange={(e) => formDialog.updateField('sort_order', parseInt(e.target.value) || 0)}
+          margin="normal"
+        />
+      </FormDialog>
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        confirmColor={confirmDialog.confirmColor}
+        onConfirm={confirmDialog.onConfirm}
+        onClose={closeConfirmDialog}
+      />
     </>
   );
 }

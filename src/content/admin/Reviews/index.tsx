@@ -1,38 +1,49 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import {
   Container,
-  Grid,
-  Button,
   Typography,
   Box,
   Alert,
   IconButton,
   Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   TextField,
   MenuItem,
   Rating,
   useTheme,
   Stack,
-  Chip,
   alpha
 } from '@mui/material';
 import AddTwoToneIcon from '@mui/icons-material/AddTwoTone';
 import EditTwoToneIcon from '@mui/icons-material/EditTwoTone';
 import DeleteTwoToneIcon from '@mui/icons-material/DeleteTwoTone';
-import RateReviewTwoToneIcon from '@mui/icons-material/RateReviewTwoTone';
 import PageHeader from 'src/components/PageHeader';
 import LoadingState from 'src/components/LoadingState';
+import ConfirmDialog from 'src/components/ConfirmDialog';
+import FormDialog from 'src/components/FormDialog';
 import DataTable, { DataTableColumn, FilterOption } from 'src/components/DataTable';
 import Label from 'src/components/Label';
+import { useConfirmDialog, useFormDialog } from 'src/hooks';
 import { reviewsService } from 'src/api';
 import { Review, ReviewCreate, ReviewPlatform } from 'src/models';
 import { REVIEW_PLATFORM_CONFIG } from 'src/constants';
 import { formatDate, truncate } from 'src/utils';
+
+interface ReviewFormData {
+  platform: ReviewPlatform;
+  author: string;
+  rating: number;
+  text: string;
+  date: string;
+}
+
+const defaultFormData: ReviewFormData = {
+  platform: 'yandex',
+  author: '',
+  rating: 5,
+  text: '',
+  date: new Date().toISOString().split('T')[0],
+};
 
 function ReviewsList() {
   const theme = useTheme();
@@ -41,18 +52,9 @@ function ReviewsList() {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [platformFilter, setPlatformFilter] = useState('all');
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingReview, setEditingReview] = useState<Review | null>(null);
-  const [formData, setFormData] = useState<ReviewCreate>({
-    platform: 'yandex',
-    author: '',
-    rating: 5,
-    text: '',
-    date: new Date().toISOString().split('T')[0]
-  });
-  const [saving, setSaving] = useState(false);
+  const { confirmDialog, openConfirmDialog, closeConfirmDialog } = useConfirmDialog();
 
-  const fetchReviews = async () => {
+  const fetchReviews = useCallback(async () => {
     try {
       setLoading(true);
       const data = await reviewsService.list();
@@ -63,11 +65,33 @@ function ReviewsList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const formDialog = useFormDialog<ReviewFormData, Review>(
+    {
+      defaultValues: defaultFormData,
+      onSubmit: async (data, isEditing) => {
+        const reviewData: ReviewCreate = data;
+        if (isEditing && formDialog.editingItem) {
+          await reviewsService.update(formDialog.editingItem.id, reviewData);
+        } else {
+          await reviewsService.create(reviewData);
+        }
+      },
+      onSuccess: fetchReviews,
+    },
+    (review) => ({
+      platform: review.platform,
+      author: review.author,
+      rating: review.rating,
+      text: review.text,
+      date: review.date,
+    })
+  );
 
   useEffect(() => {
     fetchReviews();
-  }, []);
+  }, [fetchReviews]);
 
   const filteredReviews = useMemo(() => {
     return reviews.filter((review) => {
@@ -87,61 +111,22 @@ function ReviewsList() {
     })),
   ];
 
-  const handleOpenDialog = (review?: Review) => {
-    if (review) {
-      setEditingReview(review);
-      setFormData({
-        platform: review.platform,
-        author: review.author,
-        rating: review.rating,
-        text: review.text,
-        date: review.date
-      });
-    } else {
-      setEditingReview(null);
-      setFormData({
-        platform: 'yandex',
-        author: '',
-        rating: 5,
-        text: '',
-        date: new Date().toISOString().split('T')[0]
-      });
-    }
-    setDialogOpen(true);
-  };
-
-  const handleCloseDialog = () => {
-    setDialogOpen(false);
-    setEditingReview(null);
-  };
-
-  const handleSubmit = async () => {
-    setSaving(true);
-    try {
-      if (editingReview) {
-        await reviewsService.update(editingReview.id, formData);
-      } else {
-        await reviewsService.create(formData);
+  const handleDelete = useCallback((id: number, author: string) => {
+    openConfirmDialog({
+      title: 'Удалить отзыв',
+      message: `Вы уверены, что хотите удалить отзыв от "${author}"?`,
+      confirmText: 'Удалить',
+      confirmColor: 'error',
+      onConfirm: async () => {
+        try {
+          await reviewsService.delete(id);
+          fetchReviews();
+        } catch (err) {
+          setError('Ошибка удаления отзыва');
+        }
       }
-      handleCloseDialog();
-      fetchReviews();
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Ошибка сохранения');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    if (window.confirm('Вы уверены, что хотите удалить этот отзыв?')) {
-      try {
-        await reviewsService.delete(id);
-        fetchReviews();
-      } catch (err) {
-        setError('Ошибка удаления отзыва');
-      }
-    }
-  };
+    });
+  }, [openConfirmDialog, fetchReviews]);
 
   const columns: DataTableColumn<Review>[] = [
     {
@@ -197,7 +182,7 @@ function ReviewsList() {
               size="small"
               onClick={(e) => {
                 e.stopPropagation();
-                handleOpenDialog(review);
+                formDialog.open(review);
               }}
               sx={{
                 backgroundColor: alpha(theme.palette.primary.main, 0.1),
@@ -212,7 +197,7 @@ function ReviewsList() {
               size="small"
               onClick={(e) => {
                 e.stopPropagation();
-                handleDelete(review.id);
+                handleDelete(review.id, review.author);
               }}
               sx={{
                 backgroundColor: alpha(theme.palette.error.main, 0.1),
@@ -248,10 +233,10 @@ function ReviewsList() {
             {formatDate(review.date)}
           </Typography>
           <Stack direction="row" spacing={0.5}>
-            <IconButton size="small" onClick={() => handleOpenDialog(review)}>
+            <IconButton size="small" onClick={() => formDialog.open(review)}>
               <EditTwoToneIcon fontSize="small" color="primary" />
             </IconButton>
-            <IconButton size="small" onClick={() => handleDelete(review.id)}>
+            <IconButton size="small" onClick={() => handleDelete(review.id, review.author)}>
               <DeleteTwoToneIcon fontSize="small" color="error" />
             </IconButton>
           </Stack>
@@ -275,7 +260,7 @@ function ReviewsList() {
         action={{
           label: 'Добавить отзыв',
           icon: <AddTwoToneIcon />,
-          onClick: () => handleOpenDialog(),
+          onClick: () => formDialog.open(),
         }}
       />
       <Container maxWidth="lg">
@@ -300,74 +285,80 @@ function ReviewsList() {
         />
       </Container>
 
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          <Typography variant="h6" fontWeight={600}>
-            {editingReview ? 'Редактировать отзыв' : 'Новый отзыв'}
+      <FormDialog
+        open={formDialog.isOpen}
+        title={formDialog.isEditing ? 'Редактировать отзыв' : 'Новый отзыв'}
+        onClose={formDialog.close}
+        onSubmit={formDialog.handleSubmit}
+        isLoading={formDialog.isLoading}
+      >
+        {formDialog.error && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={formDialog.clearError}>
+            {formDialog.error}
+          </Alert>
+        )}
+        <TextField
+          fullWidth
+          select
+          label="Платформа"
+          value={formDialog.formData.platform}
+          onChange={(e) => formDialog.updateField('platform', e.target.value as ReviewPlatform)}
+          margin="normal"
+          required
+        >
+          {Object.entries(REVIEW_PLATFORM_CONFIG).map(([value, config]) => (
+            <MenuItem key={value} value={value}>{config.label}</MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          fullWidth
+          label="Автор"
+          value={formDialog.formData.author}
+          onChange={(e) => formDialog.updateField('author', e.target.value)}
+          margin="normal"
+          required
+        />
+        <Box sx={{ my: 2 }}>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Рейтинг
           </Typography>
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 1 }}>
-            <TextField
-              fullWidth
-              select
-              label="Платформа"
-              value={formData.platform}
-              onChange={(e) => setFormData({ ...formData, platform: e.target.value as ReviewPlatform })}
-              margin="normal"
-              required
-            >
-              {Object.entries(REVIEW_PLATFORM_CONFIG).map(([value, config]) => (
-                <MenuItem key={value} value={value}>{config.label}</MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              fullWidth
-              label="Автор"
-              value={formData.author}
-              onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-              margin="normal"
-              required
-            />
-            <Box sx={{ my: 2 }}>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Рейтинг
-              </Typography>
-              <Rating
-                value={formData.rating}
-                onChange={(_, newValue) => setFormData({ ...formData, rating: newValue || 5 })}
-                size="large"
-              />
-            </Box>
-            <TextField
-              fullWidth
-              label="Текст отзыва"
-              value={formData.text}
-              onChange={(e) => setFormData({ ...formData, text: e.target.value })}
-              margin="normal"
-              required
-              multiline
-              rows={4}
-            />
-            <TextField
-              fullWidth
-              label="Дата"
-              type="date"
-              value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              margin="normal"
-              required
-              InputLabelProps={{ shrink: true }}
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={handleCloseDialog}>Отмена</Button>
-          <Button onClick={handleSubmit} variant="contained" disabled={saving}>
-            {saving ? 'Сохранение...' : 'Сохранить'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+          <Rating
+            value={formDialog.formData.rating}
+            onChange={(_, newValue) => formDialog.updateField('rating', newValue || 5)}
+            size="large"
+          />
+        </Box>
+        <TextField
+          fullWidth
+          label="Текст отзыва"
+          value={formDialog.formData.text}
+          onChange={(e) => formDialog.updateField('text', e.target.value)}
+          margin="normal"
+          required
+          multiline
+          rows={4}
+        />
+        <TextField
+          fullWidth
+          label="Дата"
+          type="date"
+          value={formDialog.formData.date}
+          onChange={(e) => formDialog.updateField('date', e.target.value)}
+          margin="normal"
+          required
+          InputLabelProps={{ shrink: true }}
+        />
+      </FormDialog>
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        confirmColor={confirmDialog.confirmColor}
+        onConfirm={confirmDialog.onConfirm}
+        onClose={closeConfirmDialog}
+      />
     </>
   );
 }

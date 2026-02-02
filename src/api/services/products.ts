@@ -7,15 +7,13 @@ import {
   VariantCreate,
   VariantUpdate,
   BrewProfile,
-  AttributeDetail
+  AttributeDetail,
+  SearchParams
 } from '../../models';
 
-interface ProductsParams {
-  search?: string;
+export interface ProductsParams extends SearchParams {
   category_slug?: string;
   is_active?: boolean;
-  limit?: number;
-  offset?: number;
 }
 
 export const productsService = {
