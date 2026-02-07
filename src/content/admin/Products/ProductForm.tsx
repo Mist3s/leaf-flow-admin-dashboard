@@ -13,6 +13,7 @@ import {
   ProductInfoCard,
   ProductSettingsCard,
   ProductVariantsCard,
+  ProductBrewProfilesCard,
   ProductImagesCard,
   ProductAttributesCard
 } from './components';
@@ -28,6 +29,7 @@ function ProductForm() {
     formData,
     categories,
     variants,
+    brewProfiles,
     images,
     newTag,
     uploadingImage,
@@ -42,6 +44,9 @@ function ProductForm() {
     handleAddVariant,
     handleEditVariant,
     handleDeleteVariant,
+    handleAddBrewProfile,
+    handleEditBrewProfile,
+    handleDeleteBrewProfile,
     handleImageUpload,
     handleDeleteImage,
     handleToggleAttributeValue,
@@ -99,6 +104,7 @@ function ProductForm() {
               <ProductSettingsCard
                 isActive={formData.is_active}
                 sortOrder={formData.sort_order}
+                isEdit={isEdit}
                 onActiveChange={handleActiveChange}
                 onSortOrderChange={handleSortOrderChange}
               />
@@ -115,14 +121,27 @@ function ProductForm() {
               </Box>
             </Grid>
 
-            <Grid item xs={12}>
-              <ProductVariantsCard
-                variants={variants}
-                onAdd={handleAddVariant}
-                onEdit={handleEditVariant}
-                onDelete={handleDeleteVariant}
-              />
-            </Grid>
+            {isEdit && (
+              <Grid item xs={12}>
+                <ProductVariantsCard
+                  variants={variants}
+                  onAdd={handleAddVariant}
+                  onEdit={handleEditVariant}
+                  onDelete={handleDeleteVariant}
+                />
+              </Grid>
+            )}
+
+            {isEdit && (
+              <Grid item xs={12}>
+                <ProductBrewProfilesCard
+                  profiles={brewProfiles}
+                  onAdd={handleAddBrewProfile}
+                  onEdit={handleEditBrewProfile}
+                  onDelete={handleDeleteBrewProfile}
+                />
+              </Grid>
+            )}
 
             {isEdit && (
               <Grid item xs={12}>

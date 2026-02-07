@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { productsService, categoriesService, imagesService } from 'src/api';
 import { ProductImageResponse } from 'src/api/services/images';
@@ -8,6 +8,9 @@ import {
   ProductUpdate,
   VariantCreate,
   VariantUpdate,
+  BrewProfile,
+  BrewProfileCreate,
+  BrewProfileUpdate,
   AttributeDetail
 } from 'src/models';
 import { LocalVariant } from '../components/ProductVariantsCard';
@@ -31,7 +34,7 @@ const initialFormData: ProductFormData = {
   category_slug: '',
   product_type_code: 'tea',
   tags: [],
-  is_active: true,
+  is_active: false,
   sort_order: 0
 };
 
@@ -48,6 +51,7 @@ export function useProductForm() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
   const [variants, setVariants] = useState<LocalVariant[]>([]);
+  const [brewProfiles, setBrewProfiles] = useState<BrewProfile[]>([]);
   const [images, setImages] = useState<ProductImageResponse[]>([]);
   const [newTag, setNewTag] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -86,6 +90,8 @@ export function useProductForm() {
             isDeleted: false
           })));
 
+          setBrewProfiles(product.brew_profiles || []);
+
           if (product.attribute_values) {
             const selectedIds: number[] = [];
             product.attribute_values.forEach(attr => {
@@ -112,16 +118,8 @@ export function useProductForm() {
     fetchData();
   }, [isEdit, productId]);
 
-  // Filter attributes by product type
-  const filteredAttributes = useMemo(() => {
-    if (!formData.product_type_code) return allAttributes;
-    return allAttributes.filter(attr => {
-      if (!attr.product_type_codes || attr.product_type_codes.length === 0) {
-        return true;
-      }
-      return attr.product_type_codes.includes(formData.product_type_code);
-    });
-  }, [allAttributes, formData.product_type_code]);
+  // All attributes (no client-side filtering by product type)
+  const filteredAttributes = allAttributes;
 
   // Form field handlers
   const handleFieldChange = useCallback((field: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -215,6 +213,80 @@ export function useProductForm() {
     }
   }, [isEdit, productId]);
 
+  // Brew Profile handlers
+  const handleAddBrewProfile = useCallback(async (data: {
+    method: string;
+    teaware: string;
+    temperature: string;
+    brew_time: string;
+    weight: string;
+    note: string;
+    sort_order: number;
+    is_active: boolean;
+  }) => {
+    if (!productId) return;
+    try {
+      const createData: BrewProfileCreate = {
+        method: data.method,
+        teaware: data.teaware,
+        temperature: data.temperature,
+        brew_time: data.brew_time,
+        weight: data.weight,
+        note: data.note || null,
+        sort_order: data.sort_order,
+        is_active: data.is_active
+      };
+      const created = await productsService.createBrewProfile(productId, createData);
+      setBrewProfiles(prev => [...prev, created]);
+      setSuccess('Профиль заваривания добавлен');
+      setError('');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Ошибка добавления профиля заваривания');
+    }
+  }, [productId]);
+
+  const handleEditBrewProfile = useCallback(async (profile: BrewProfile, data: {
+    method: string;
+    teaware: string;
+    temperature: string;
+    brew_time: string;
+    weight: string;
+    note: string;
+    sort_order: number;
+    is_active: boolean;
+  }) => {
+    if (!productId) return;
+    try {
+      const updateData: BrewProfileUpdate = {
+        method: data.method,
+        teaware: data.teaware,
+        temperature: data.temperature,
+        brew_time: data.brew_time,
+        weight: data.weight,
+        note: data.note || null,
+        sort_order: data.sort_order,
+        is_active: data.is_active
+      };
+      const updated = await productsService.updateBrewProfile(productId, profile.id, updateData);
+      setBrewProfiles(prev => prev.map(p => p.id === profile.id ? updated : p));
+      setSuccess('Профиль заваривания обновлён');
+      setError('');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Ошибка обновления профиля заваривания');
+    }
+  }, [productId]);
+
+  const handleDeleteBrewProfile = useCallback(async (profile: BrewProfile) => {
+    if (!productId) return;
+    try {
+      await productsService.deleteBrewProfile(productId, profile.id);
+      setBrewProfiles(prev => prev.filter(p => p.id !== profile.id));
+      setSuccess('Профиль заваривания удалён');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Ошибка удаления профиля заваривания');
+    }
+  }, [productId]);
+
   // Image handlers
   const handleImageUpload = useCallback(async (files: FileList) => {
     const targetProductId = isEdit ? productId : formData.id;
@@ -301,22 +373,9 @@ export function useProductForm() {
           category_slug: formData.category_slug,
           product_type_code: formData.product_type_code,
           tags: formData.tags,
-          is_active: formData.is_active
+          is_active: false
         };
         await productsService.create(createData);
-
-        for (const variant of variants) {
-          if (variant.id && variant.weight && variant.price) {
-            await productsService.createVariant(formData.id, {
-              id: variant.id,
-              weight: variant.weight,
-              price: variant.price,
-              is_active: variant.is_active,
-              sort_order: variant.sort_order
-            });
-          }
-        }
-
         navigate(ROUTES.PRODUCTS);
       }
     } catch (err: any) {
@@ -343,6 +402,7 @@ export function useProductForm() {
     formData,
     categories,
     variants,
+    brewProfiles,
     images,
     newTag,
     uploadingImage,
@@ -359,6 +419,9 @@ export function useProductForm() {
     handleAddVariant,
     handleEditVariant,
     handleDeleteVariant,
+    handleAddBrewProfile,
+    handleEditBrewProfile,
+    handleDeleteBrewProfile,
     handleImageUpload,
     handleDeleteImage,
     handleToggleAttributeValue,

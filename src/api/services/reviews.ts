@@ -1,9 +1,9 @@
 import apiClient from '../client';
-import { Review, ReviewCreate, ReviewUpdate } from '../../models';
+import { Review, ReviewCreate, ReviewUpdate, ReviewList, PaginationParams } from '../../models';
 
 export const reviewsService = {
-  list: async (): Promise<Review[]> => {
-    const response = await apiClient.get<Review[]>('/v1/admin/reviews');
+  list: async (params?: PaginationParams): Promise<ReviewList> => {
+    const response = await apiClient.get<ReviewList>('/v1/admin/reviews', { params });
     return response.data;
   },
 

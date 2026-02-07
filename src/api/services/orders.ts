@@ -23,7 +23,7 @@ export const ordersService = {
   },
 
   updateStatus: async (orderId: string, data: OrderStatusUpdate): Promise<Order> => {
-    const response = await apiClient.post<Order>(`/v1/admin/orders/${orderId}/status`, data);
+    const response = await apiClient.patch<Order>(`/v1/admin/orders/${orderId}/status`, data);
     return response.data;
   },
 

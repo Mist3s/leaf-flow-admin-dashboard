@@ -130,16 +130,16 @@ function ProductVariantsCard({
       <Card>
         <CardHeader
           title={
-            <Box display="flex" alignItems="center" gap={1}>
-              <ScaleTwoToneIcon color="primary" />
-              <Typography variant="h6" fontWeight={600}>
+            <Box display="flex" alignItems="center" gap={1} flexWrap="nowrap" minWidth={0}>
+              {!isMobile && <ScaleTwoToneIcon color="primary" />}
+              <Typography variant="h6" fontWeight={600} noWrap>
                 Варианты
               </Typography>
               <Chip
                 label={variants.length}
                 size="small"
                 color="primary"
-                sx={{ ml: 1, minWidth: 28, height: 24 }}
+                sx={{ minWidth: 24, height: 22 }}
               />
             </Box>
           }
@@ -150,9 +150,14 @@ function ProductVariantsCard({
               size="small"
               variant="outlined"
             >
-              Добавить
+              {isMobile ? '' : 'Добавить'}
             </Button>
           }
+          sx={{
+            '& .MuiCardHeader-action': {
+              alignSelf: 'center',
+            },
+          }}
         />
         <CardContent>
           {variants.length > 0 ? (

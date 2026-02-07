@@ -48,6 +48,28 @@ export interface BrewProfile {
   is_active: boolean;
 }
 
+export interface BrewProfileCreate {
+  method: string;
+  teaware: string;
+  temperature: string;
+  brew_time: string;
+  weight: string;
+  note?: string | null;
+  sort_order?: number;
+  is_active?: boolean;
+}
+
+export interface BrewProfileUpdate {
+  method?: string;
+  teaware?: string;
+  temperature?: string;
+  brew_time?: string;
+  weight?: string;
+  note?: string | null;
+  sort_order?: number;
+  is_active?: boolean;
+}
+
 export interface ProductImageVariant {
   id: number;
   variant: 'original' | 'thumb' | 'md' | 'lg';
@@ -256,6 +278,11 @@ export interface ReviewUpdate {
   date?: string;
 }
 
+export interface ReviewList {
+  total: number;
+  items: Review[];
+}
+
 // ================== ATTRIBUTES ==================
 export interface AttributeValueDetail {
   id: number;
@@ -277,7 +304,6 @@ export interface AttributeDetail {
   kind: 'single' | 'multi' | 'bool' | 'range';
   ui_hint: 'chips' | 'radio' | 'toggle' | 'scale';
   values: AttributeValueDetail[];
-  product_type_codes?: string[];
 }
 
 // ================== API COMMON ==================

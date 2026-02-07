@@ -7,6 +7,8 @@ import {
   VariantCreate,
   VariantUpdate,
   BrewProfile,
+  BrewProfileCreate,
+  BrewProfileUpdate,
   AttributeDetail,
   SearchParams
 } from '../../models';
@@ -43,7 +45,7 @@ export const productsService = {
   },
 
   setActive: async (productId: string, isActive: boolean): Promise<void> => {
-    await apiClient.post(`/v1/admin/products/${productId}/active`, null, {
+    await apiClient.patch(`/v1/admin/products/${productId}/active`, null, {
       params: { is_active: isActive }
     });
   },
@@ -71,18 +73,26 @@ export const productsService = {
     await apiClient.delete(`/v1/admin/products/${productId}/variants/${variantId}`);
   },
 
+  setVariantActive: async (productId: string, variantId: string, isActive: boolean): Promise<void> => {
+    await apiClient.patch(
+      `/v1/admin/products/${productId}/variants/${variantId}/active`,
+      null,
+      { params: { is_active: isActive } }
+    );
+  },
+
   // Brew Profiles
   listBrewProfiles: async (productId: string): Promise<BrewProfile[]> => {
     const response = await apiClient.get(`/v1/admin/products/${productId}/brew-profiles`);
     return response.data;
   },
 
-  createBrewProfile: async (productId: string, data: any): Promise<BrewProfile> => {
+  createBrewProfile: async (productId: string, data: BrewProfileCreate): Promise<BrewProfile> => {
     const response = await apiClient.post(`/v1/admin/products/${productId}/brew-profiles`, data);
     return response.data;
   },
 
-  updateBrewProfile: async (productId: string, profileId: number, data: any): Promise<BrewProfile> => {
+  updateBrewProfile: async (productId: string, profileId: number, data: BrewProfileUpdate): Promise<BrewProfile> => {
     const response = await apiClient.patch(
       `/v1/admin/products/${productId}/brew-profiles/${profileId}`,
       data

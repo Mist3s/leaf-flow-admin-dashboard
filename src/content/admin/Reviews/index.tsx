@@ -57,8 +57,8 @@ function ReviewsList() {
   const fetchReviews = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await reviewsService.list();
-      setReviews(data);
+      const data = await reviewsService.list({ limit: 100, offset: 0 });
+      setReviews(data.items);
       setError('');
     } catch (err) {
       setError('Ошибка загрузки отзывов');

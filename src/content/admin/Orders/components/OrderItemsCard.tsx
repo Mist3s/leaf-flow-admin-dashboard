@@ -19,17 +19,21 @@ import {
   Select,
   MenuItem,
   Grid,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
   Stack,
   useTheme,
   useMediaQuery,
-  alpha,
-  styled
+  alpha
 } from '@mui/material';
+import { StyledTableContainer, MobileCard } from 'src/components/StyledTable';
 import EditTwoToneIcon from '@mui/icons-material/EditTwoTone';
 import DeleteTwoToneIcon from '@mui/icons-material/DeleteTwoTone';
 import AddTwoToneIcon from '@mui/icons-material/AddTwoTone';
 import SaveTwoToneIcon from '@mui/icons-material/SaveTwoTone';
-import ShoppingCartTwoToneIcon from '@mui/icons-material/ShoppingCartTwoTone';
 import { OrderItem, Product } from 'src/models';
 import { formatPrice } from 'src/utils';
 import { productsService } from 'src/api';
@@ -44,42 +48,13 @@ interface OrderItemsCardProps {
   onSave: (items: EditableItem[]) => Promise<void>;
 }
 
-const ItemRow = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  padding: theme.spacing(1.5, 2),
-  borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.08)}`,
-  transition: 'background-color 0.15s ease-in-out',
-  '&:hover': {
-    backgroundColor: alpha(theme.palette.primary.main, 0.02),
-  },
-  '&:last-child': {
-    borderBottom: 'none',
-  },
-  [theme.breakpoints.down('sm')]: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: theme.spacing(1),
-    padding: theme.spacing(1.5),
-  },
-}));
-
-const TotalRow = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  padding: theme.spacing(2, 2),
-  backgroundColor: alpha(theme.palette.primary.main, 0.04),
-  borderTop: `2px solid ${theme.palette.divider}`,
-}));
-
 function OrderItemsCard({ items: initialItems, orderTotal, onSave }: OrderItemsCardProps) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [items, setItems] = useState<EditableItem[]>(initialItems);
-  
+
   // Add item dialog
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
@@ -123,7 +98,6 @@ function OrderItemsCard({ items: initialItems, orderTotal, onSave }: OrderItemsC
     setEditing(false);
   };
 
-  // Add item dialog
   const openAddDialog = async () => {
     setAddDialogOpen(true);
     if (products.length === 0) {
@@ -132,7 +106,7 @@ function OrderItemsCard({ items: initialItems, orderTotal, onSave }: OrderItemsC
         const response = await productsService.list({ limit: 100, is_active: true });
         setProducts(response.items);
       } catch {
-        // Error handling
+        // silent
       } finally {
         setLoadingProducts(false);
       }
@@ -142,7 +116,6 @@ function OrderItemsCard({ items: initialItems, orderTotal, onSave }: OrderItemsC
   const handleAddItem = () => {
     const product = products.find(p => p.id === newItem.product_id);
     const variant = product?.variants.find(v => v.id === newItem.variant_id);
-
     if (!product || !variant) return;
 
     const price = parseFloat(variant.price);
@@ -168,45 +141,25 @@ function OrderItemsCard({ items: initialItems, orderTotal, onSave }: OrderItemsC
   };
 
   const selectedProduct = products.find(p => p.id === newItem.product_id);
+  const displayTotal = editing ? calculateTotal() : orderTotal;
 
   return (
     <>
-      <Card sx={{ overflow: 'hidden' }}>
+      <Card>
         <CardHeader
-          title={
-            <Box display="flex" alignItems="center" gap={1}>
-              <ShoppingCartTwoToneIcon color="primary" />
-              <Typography variant="h6" fontWeight={600}>
-                Товары
-              </Typography>
-              <Chip
-                label={items.length}
-                size="small"
-                color="primary"
-                sx={{ ml: 1, minWidth: 28, height: 24 }}
-              />
-            </Box>
-          }
+          title="Товары"
+          subheader={`${items.length} позиций`}
           action={
             !editing ? (
-              <Button
-                size="small"
-                startIcon={<EditTwoToneIcon />}
-                onClick={handleEdit}
-                variant="outlined"
-              >
-                {isMobile ? '' : 'Редактировать'}
-              </Button>
+              <IconButton size="small" onClick={handleEdit}>
+                <EditTwoToneIcon fontSize="small" />
+              </IconButton>
             ) : (
-              <Stack direction="row" spacing={0.5} flexWrap="wrap" justifyContent="flex-end">
-                <IconButton size="small" onClick={openAddDialog} color="primary">
-                  <AddTwoToneIcon fontSize="small" />
-                </IconButton>
-                <Button 
-                  size="small" 
-                  onClick={handleCancel}
-                  sx={{ minWidth: 'auto', px: 1 }}
-                >
+              <Stack direction="row" spacing={1}>
+                <Button size="small" startIcon={<AddTwoToneIcon />} onClick={openAddDialog}>
+                  {!isMobile && 'Добавить'}
+                </Button>
+                <Button size="small" onClick={handleCancel}>
                   {isMobile ? '✕' : 'Отмена'}
                 </Button>
                 <Button
@@ -214,142 +167,240 @@ function OrderItemsCard({ items: initialItems, orderTotal, onSave }: OrderItemsC
                   variant="contained"
                   onClick={handleSave}
                   disabled={saving}
-                  sx={{ minWidth: 'auto', px: isMobile ? 1.5 : 2 }}
+                  startIcon={!isMobile ? (saving ? <CircularProgress size={16} /> : <SaveTwoToneIcon />) : undefined}
+                  sx={isMobile ? { minWidth: 'auto', px: 1 } : undefined}
                 >
-                  {saving ? <CircularProgress size={16} /> : (isMobile ? <SaveTwoToneIcon fontSize="small" /> : 'Сохранить')}
+                  {isMobile
+                    ? (saving ? <CircularProgress size={18} /> : <SaveTwoToneIcon fontSize="small" />)
+                    : 'Сохранить'
+                  }
                 </Button>
               </Stack>
             )
           }
         />
-        
-        <Box sx={{ overflowX: 'hidden' }}>
-          {items.map((item, index) => (
-            <ItemRow key={index}>
-              {/* Product info */}
-              <Box display="flex" alignItems="center" gap={1.5} flex={1} minWidth={0} width="100%">
-                <Avatar 
-                  variant="rounded" 
-                  src={item.image} 
-                  sx={{ 
-                    width: isMobile ? 36 : 44, 
-                    height: isMobile ? 36 : 44,
-                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                    fontSize: isMobile ? '1rem' : '1.2rem',
-                    flexShrink: 0,
-                  }}
-                >
-                  🍃
-                </Avatar>
-                <Box flex={1} minWidth={0}>
-                  <Typography 
-                    variant="body2" 
-                    fontWeight={600} 
-                    sx={{ 
-                      wordBreak: 'break-word',
-                      fontSize: isMobile ? '0.8rem' : '0.875rem',
-                    }}
-                  >
-                    {item.product_name}
-                    {item.isNew && (
-                      <Chip 
-                        size="small" 
-                        label="Новый" 
-                        color="success" 
-                        sx={{ height: 16, fontSize: '0.55rem', ml: 0.5 }} 
-                      />
-                    )}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {item.variant_weight}
-                  </Typography>
-                </Box>
-              </Box>
 
-              {/* Quantity, Price, Actions */}
-              <Box 
-                display="flex" 
-                alignItems="center" 
-                justifyContent={isMobile ? 'space-between' : 'flex-end'}
-                gap={isMobile ? 1 : 1.5}
-                width={isMobile ? '100%' : 'auto'}
-                pl={isMobile ? 5.5 : 0}
-              >
-                {editing ? (
-                  <TextField
-                    type="number"
-                    size="small"
-                    value={item.quantity}
-                    onChange={(e) => handleQuantityChange(index, parseInt(e.target.value) || 1)}
-                    inputProps={{ min: 1, style: { textAlign: 'center' } }}
-                    sx={{ 
-                      width: isMobile ? 55 : 70,
-                      '& .MuiInputBase-input': { py: 0.5, fontSize: isMobile ? '0.8rem' : '1rem' },
-                    }}
-                  />
-                ) : (
-                  <Box 
-                    sx={{ 
-                      px: 0.75, 
-                      py: 0.25, 
-                      borderRadius: 1,
-                      backgroundColor: alpha(theme.palette.divider, 0.3),
-                    }}
-                  >
-                    <Typography variant="caption" fontWeight={500}>
-                      ×{item.quantity}
-                    </Typography>
-                  </Box>
-                )}
-                
-                <Box textAlign="right" sx={{ minWidth: isMobile ? 60 : 80 }}>
-                  <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: isMobile ? '0.65rem' : '0.75rem' }}>
-                    {formatPrice(item.price)}
-                  </Typography>
-                  <Typography variant="body2" fontWeight={600} color="primary.main" sx={{ fontSize: isMobile ? '0.8rem' : '0.875rem' }}>
-                    {formatPrice(item.total)}
-                  </Typography>
-                </Box>
-
-                {editing && (
-                  <IconButton
-                    size="small"
-                    color="error"
-                    onClick={() => handleRemove(index)}
+        {isMobile ? (
+          /* Mobile: card-based list */
+          <Box>
+            {items.map((item, index) => (
+              <MobileCard key={index} sx={{ cursor: 'default' }}>
+                <Box display="flex" gap={1.5}>
+                  <Avatar
+                    variant="rounded"
+                    src={item.image}
                     sx={{
-                      width: isMobile ? 28 : 32,
-                      height: isMobile ? 28 : 32,
-                      backgroundColor: alpha(theme.palette.error.main, 0.1),
-                      '&:hover': {
-                        backgroundColor: alpha(theme.palette.error.main, 0.2),
-                      },
+                      width: 40,
+                      height: 40,
+                      backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                      fontSize: '0.9rem',
+                      mt: 0.25,
+                      flexShrink: 0,
                     }}
                   >
-                    <DeleteTwoToneIcon sx={{ fontSize: isMobile ? 16 : 20 }} />
-                  </IconButton>
-                )}
-              </Box>
-            </ItemRow>
-          ))}
-        </Box>
+                    🍃
+                  </Avatar>
+                  <Box flex={1} minWidth={0}>
+                    {/* Row 1: name + total or delete */}
+                    <Box display="flex" justifyContent="space-between" alignItems="flex-start" gap={1}>
+                      <Typography variant="body2" fontWeight={600} noWrap sx={{ flex: 1, minWidth: 0 }}>
+                        {item.product_name}
+                        {item.isNew && (
+                          <Chip
+                            size="small"
+                            label="Новый"
+                            color="success"
+                            sx={{ height: 18, fontSize: '0.65rem', ml: 0.5, verticalAlign: 'middle' }}
+                          />
+                        )}
+                      </Typography>
+                      {editing ? (
+                        <IconButton
+                          size="small"
+                          onClick={() => handleRemove(index)}
+                          sx={{
+                            width: 28,
+                            height: 28,
+                            flexShrink: 0,
+                            backgroundColor: alpha(theme.palette.error.main, 0.1),
+                            '&:hover': { backgroundColor: alpha(theme.palette.error.main, 0.2) },
+                          }}
+                        >
+                          <DeleteTwoToneIcon sx={{ fontSize: 16 }} color="error" />
+                        </IconButton>
+                      ) : (
+                        <Typography variant="body2" fontWeight={600} sx={{ flexShrink: 0 }}>
+                          {formatPrice(item.total)}
+                        </Typography>
+                      )}
+                    </Box>
 
-        <TotalRow>
-          <Typography variant="h6" fontWeight={600}>
-            Итого:
-          </Typography>
-          <Typography variant="h5" fontWeight={700} color="primary.main">
-            {editing ? formatPrice(calculateTotal()) : formatPrice(orderTotal)}
-          </Typography>
-        </TotalRow>
+                    {/* Row 2: details */}
+                    <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.25 }}>
+                      {item.variant_weight} · {formatPrice(item.price)}
+                    </Typography>
+
+                    {/* Row 3 (editing): quantity + total */}
+                    {editing && (
+                      <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.75}>
+                        <TextField
+                          type="number"
+                          size="small"
+                          value={item.quantity}
+                          onChange={(e) => handleQuantityChange(index, parseInt(e.target.value) || 1)}
+                          inputProps={{ min: 1, style: { textAlign: 'center' } }}
+                          sx={{ width: 64, '& .MuiInputBase-input': { py: 0.5, px: 0.5 } }}
+                        />
+                        <Typography variant="body2" fontWeight={600}>
+                          {formatPrice(item.total)}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {/* Non-editing: show quantity inline */}
+                    {!editing && (
+                      <Typography variant="caption" color="text.secondary" component="div">
+                        Кол-во: {item.quantity}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              </MobileCard>
+            ))}
+
+            {/* Total */}
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+              sx={{ px: 2, py: 1.5 }}
+            >
+              <Typography variant="body1" fontWeight={600}>
+                Итого
+              </Typography>
+              <Typography variant="body1" fontWeight={700} color="primary.main">
+                {formatPrice(displayTotal)}
+              </Typography>
+            </Box>
+          </Box>
+        ) : (
+          /* Desktop: table layout */
+          <StyledTableContainer>
+            <Table size="medium">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Товар</TableCell>
+                  <TableCell>Вес</TableCell>
+                  <TableCell align="center">Кол-во</TableCell>
+                  <TableCell align="right">Цена</TableCell>
+                  <TableCell align="right">Сумма</TableCell>
+                  {editing && <TableCell align="right" />}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {items.map((item, index) => (
+                  <TableRow key={index} sx={{ cursor: 'default' }}>
+                    <TableCell>
+                      <Box display="flex" alignItems="center" gap={1.5}>
+                        <Avatar
+                          variant="rounded"
+                          src={item.image}
+                          sx={{
+                            width: 40,
+                            height: 40,
+                            backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                          }}
+                        >
+                          🍃
+                        </Avatar>
+                        <Typography variant="body2" fontWeight={600}>
+                          {item.product_name}
+                          {item.isNew && (
+                            <Chip
+                              size="small"
+                              label="Новый"
+                              color="success"
+                              sx={{ height: 18, fontSize: '0.65rem', ml: 0.5 }}
+                            />
+                          )}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {item.variant_weight}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      {editing ? (
+                        <TextField
+                          type="number"
+                          size="small"
+                          value={item.quantity}
+                          onChange={(e) => handleQuantityChange(index, parseInt(e.target.value) || 1)}
+                          inputProps={{ min: 1, style: { textAlign: 'center' } }}
+                          sx={{ width: 64, '& .MuiInputBase-input': { py: 0.5, px: 0.5 } }}
+                        />
+                      ) : (
+                        <Typography variant="body2">{item.quantity}</Typography>
+                      )}
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography variant="body2" color="text.secondary">
+                        {formatPrice(item.price)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="right">
+                      <Typography variant="body2" fontWeight={600}>
+                        {formatPrice(item.total)}
+                      </Typography>
+                    </TableCell>
+                    {editing && (
+                      <TableCell align="right" sx={{ width: 48 }}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleRemove(index)}
+                          sx={{
+                            backgroundColor: alpha(theme.palette.error.main, 0.1),
+                            '&:hover': { backgroundColor: alpha(theme.palette.error.main, 0.2) },
+                          }}
+                        >
+                          <DeleteTwoToneIcon fontSize="small" color="error" />
+                        </IconButton>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+
+                {/* Total row */}
+                <TableRow sx={{ '& .MuiTableCell-root': { borderBottom: 'none' } }}>
+                  <TableCell colSpan={3}>
+                    <Typography variant="body1" fontWeight={600}>
+                      Итого
+                    </Typography>
+                  </TableCell>
+                  <TableCell />
+                  <TableCell align="right">
+                    <Typography variant="body1" fontWeight={700} color="primary.main">
+                      {formatPrice(displayTotal)}
+                    </Typography>
+                  </TableCell>
+                  {editing && <TableCell />}
+                </TableRow>
+              </TableBody>
+            </Table>
+          </StyledTableContainer>
+        )}
       </Card>
 
-      <Dialog 
-        open={addDialogOpen} 
-        onClose={() => setAddDialogOpen(false)} 
-        maxWidth="sm" 
+      {/* Add item dialog */}
+      <Dialog
+        open={addDialogOpen}
+        onClose={() => setAddDialogOpen(false)}
+        maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>
+        <DialogTitle sx={{ pb: 1 }}>
           <Typography variant="h6" fontWeight={600}>
             Добавить товар
           </Typography>

@@ -10,6 +10,7 @@ import {
 interface ProductSettingsCardProps {
   isActive: boolean;
   sortOrder: number;
+  isEdit: boolean;
   onActiveChange: (checked: boolean) => void;
   onSortOrderChange: (value: number) => void;
 }
@@ -17,6 +18,7 @@ interface ProductSettingsCardProps {
 function ProductSettingsCard({
   isActive,
   sortOrder,
+  isEdit,
   onActiveChange,
   onSortOrderChange
 }: ProductSettingsCardProps) {
@@ -24,22 +26,24 @@ function ProductSettingsCard({
     <Card>
       <CardHeader title="Настройки" />
       <CardContent>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={isActive}
-              onChange={(e) => onActiveChange(e.target.checked)}
-            />
-          }
-          label="Активен"
-        />
+        {isEdit && (
+          <FormControlLabel
+            control={
+              <Switch
+                checked={isActive}
+                onChange={(e) => onActiveChange(e.target.checked)}
+              />
+            }
+            label="Активен"
+          />
+        )}
         <TextField
           fullWidth
           type="number"
           label="Порядок сортировки"
           value={sortOrder}
           onChange={(e) => onSortOrderChange(parseInt(e.target.value) || 0)}
-          sx={{ mt: 2 }}
+          sx={isEdit ? { mt: 2 } : undefined}
         />
       </CardContent>
     </Card>

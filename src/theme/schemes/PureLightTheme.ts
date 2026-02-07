@@ -323,6 +323,11 @@ export const PureLightTheme = createTheme({
     }
   },
   components: {
+    MuiPopover: {
+      defaultProps: {
+        disableScrollLock: true
+      }
+    },
     MuiBackdrop: {
       styleOverrides: {
         root: {
@@ -751,6 +756,9 @@ export const PureLightTheme = createTheme({
       }
     },
     MuiDialog: {
+      defaultProps: {
+        disableScrollLock: true
+      },
       styleOverrides: {
         paper: {
           borderRadius: 16
@@ -866,6 +874,9 @@ export const PureLightTheme = createTheme({
       }
     },
     MuiMenu: {
+      defaultProps: {
+        disableScrollLock: true
+      },
       styleOverrides: {
         paper: {
           padding: 12
