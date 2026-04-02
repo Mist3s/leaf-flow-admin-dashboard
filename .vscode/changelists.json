@@ -1,0 +1,44 @@
+{
+  "changelists": [
+    {
+      "name": "Default",
+      "files": [
+        "src/api/config.ts",
+        "src/content/admin/Orders/OrderDetail.tsx",
+        "src/content/admin/Orders/components/OrderItemsCard.tsx",
+        "src/content/admin/Products/ProductsTable.tsx",
+        "src/content/admin/Products/components/ProductImagesCard.tsx",
+        "src/index.tsx",
+        "src/layouts/SidebarLayout/Header/Buttons/Search/index.tsx",
+        "src/layouts/SidebarLayout/Sidebar/SidebarMenu/index.tsx",
+        "src/models/index.ts",
+        "src/router.tsx",
+        "src/utils/formatters.ts",
+        ".project_memory/00_overview.md",
+        ".project_memory/01_architecture.md",
+        ".project_memory/02_principles_and_styles.md",
+        ".project_memory/03_chat_integration_plan.md",
+        ".project_memory/index.md",
+        "docs/integration-admin-panel.md",
+        "docs/integration-backend.md",
+        "docs/integration-web-client.md",
+        "nginx/default.conf",
+        "src/api/services/chat.ts",
+        "src/components/ChatWindow/ChatWindow.tsx",
+        "src/components/ChatWindow/MessageBubble.tsx",
+        "src/components/ChatWindow/NewMessagesSeparator.tsx",
+        "src/components/ChatWindow/SystemMessage.tsx",
+        "src/components/ChatWindow/index.ts",
+        "src/content/admin/Chat/Sidebar/index.tsx",
+        "src/content/admin/Chat/index.tsx",
+        "src/contexts/ChatContext.tsx",
+        "src/hooks/useChatWebSocket.ts",
+        "src/models/chat.ts",
+        "src/utils/chatWebSocket.ts",
+        "src/utils/getCurrentAdminId.ts",
+        ".vscode/changelists.json"
+      ]
+    }
+  ],
+  "active": "Default"
+}

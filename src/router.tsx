@@ -9,11 +9,11 @@ import SuspenseLoader from 'src/components/SuspenseLoader';
 import ProtectedRoute from 'src/components/ProtectedRoute';
 
 const Loader = (Component) => (props) =>
-  (
-    <Suspense fallback={<SuspenseLoader />}>
-      <Component {...props} />
-    </Suspense>
-  );
+(
+  <Suspense fallback={<SuspenseLoader />}>
+    <Component {...props} />
+  </Suspense>
+);
 
 // Auth
 const Login = Loader(lazy(() => import('src/content/pages/Auth/Login')));
@@ -28,6 +28,7 @@ const CategoriesList = Loader(lazy(() => import('src/content/admin/Categories'))
 const UsersList = Loader(lazy(() => import('src/content/admin/Users')));
 const UserDetail = Loader(lazy(() => import('src/content/admin/Users/UserDetail')));
 const ReviewsList = Loader(lazy(() => import('src/content/admin/Reviews')));
+const ChatPage = Loader(lazy(() => import('src/content/admin/Chat')));
 
 // Status
 const Status404 = Loader(
@@ -146,6 +147,10 @@ const routes: RouteObject[] = [
       {
         path: 'reviews',
         element: <ReviewsList />
+      },
+      {
+        path: 'chat',
+        element: <ChatPage />
       }
     ]
   }

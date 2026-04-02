@@ -7,7 +7,8 @@ import {
   List,
   styled,
   Button,
-  ListItem
+  ListItem,
+  Badge
 } from '@mui/material';
 import { NavLink as RouterLink } from 'react-router-dom';
 import { SidebarContext } from 'src/contexts/SidebarContext';
@@ -18,6 +19,8 @@ import ShoppingCartTwoToneIcon from '@mui/icons-material/ShoppingCartTwoTone';
 import CategoryTwoToneIcon from '@mui/icons-material/CategoryTwoTone';
 import PeopleTwoToneIcon from '@mui/icons-material/PeopleTwoTone';
 import RateReviewTwoToneIcon from '@mui/icons-material/RateReviewTwoTone';
+import ChatTwoToneIcon from '@mui/icons-material/ChatTwoTone';
+import { useChat } from 'src/contexts/ChatContext';
 
 const MenuWrapper = styled(Box)(
   ({ theme }) => `
@@ -134,9 +137,9 @@ const SubMenuWrapper = styled(Box)(
                 background: ${theme.colors.alpha.trueWhite[100]};
                 opacity: 0;
                 transition: ${theme.transitions.create([
-                  'transform',
-                  'opacity'
-                ])};
+    'transform',
+    'opacity'
+  ])};
                 width: 6px;
                 height: 6px;
                 transform: scale(0);
@@ -163,6 +166,7 @@ const SubMenuWrapper = styled(Box)(
 
 function SidebarMenu() {
   const { closeSidebar } = useContext(SidebarContext);
+  const { unreadCount } = useChat();
 
   return (
     <>
@@ -260,6 +264,20 @@ function SidebarMenu() {
                   startIcon={<RateReviewTwoToneIcon />}
                 >
                   Отзывы
+                </Button>
+              </ListItem>
+              <ListItem component="div">
+                <Button
+                  disableRipple
+                  component={RouterLink}
+                  onClick={closeSidebar}
+                  to="/admin/chat"
+                  startIcon={<ChatTwoToneIcon />}
+                >
+                  Чат
+                  {unreadCount > 0 && (
+                    <Badge badgeContent={unreadCount} color="error" />
+                  )}
                 </Button>
               </ListItem>
             </List>

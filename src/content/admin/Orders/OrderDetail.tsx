@@ -18,6 +18,8 @@ import {
 } from './components';
 import { useOrderDetail } from './hooks/useOrderDetail';
 import { formatDateTime, formatOrderId } from 'src/utils';
+import { useChat } from 'src/contexts/ChatContext';
+import { ChatWindow } from 'src/components/ChatWindow';
 
 function OrderDetail() {
   const theme = useTheme();
@@ -55,6 +57,11 @@ function OrderDetail() {
 
   const orderItems = order.items.map(item => ({ ...item, isNew: false }));
 
+  const { conversations } = useChat();
+  const orderConversation = conversations.find(
+    c => c.topic_type === 'order' && c.topic_id === Number(order.id)
+  );
+
   return (
     <>
       <Helmet>
@@ -86,6 +93,11 @@ function OrderDetail() {
               orderTotal={order.total}
               onSave={handleUpdateItems}
             />
+            {orderConversation && (
+              <Box mt={3} height={550}>
+                <ChatWindow conversationId={orderConversation.id} />
+              </Box>
+            )}
           </Grid>
 
           <Grid item xs={12} md={4}>

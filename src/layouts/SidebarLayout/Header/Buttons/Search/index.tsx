@@ -28,6 +28,7 @@ import PeopleTwoToneIcon from '@mui/icons-material/PeopleTwoTone';
 import CategoryTwoToneIcon from '@mui/icons-material/CategoryTwoTone';
 import { productsService, ordersService, usersService, categoriesService } from 'src/api';
 import { Product, Order, User, Category } from 'src/models';
+import { getProductThumbUrl } from 'src/utils';
 
 const Transition = forwardRef(function Transition(
   props: TransitionProps & { children: ReactElement<any, any> },
@@ -217,7 +218,7 @@ function HeaderSearch() {
                           <ListItemAvatar>
                             <Avatar 
                               variant="rounded" 
-                              src={product.image}
+                              src={getProductThumbUrl(product)}
                               sx={{ bgcolor: 'primary.main' }}
                             >
                               <InventoryTwoToneIcon />

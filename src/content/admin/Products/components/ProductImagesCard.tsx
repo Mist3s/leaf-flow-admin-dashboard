@@ -16,6 +16,7 @@ import {
 import CloudUploadTwoToneIcon from '@mui/icons-material/CloudUploadTwoTone';
 import DeleteTwoToneIcon from '@mui/icons-material/DeleteTwoTone';
 import { ProductImageResponse } from 'src/api/services/images';
+import { prependMediaUrl } from 'src/utils';
 
 interface ProductImagesCardProps {
   images: ProductImageResponse[];
@@ -29,7 +30,7 @@ function getImageUrl(image: ProductImageResponse): string {
   const thumbVariant = image.variants.find(v => v.variant === 'thumb');
   const originalVariant = image.variants.find(v => v.variant === 'original');
   const variant = mdVariant || thumbVariant || originalVariant;
-  return variant?.storage_key || '';
+  return prependMediaUrl(variant?.storage_key) || '';
 }
 
 function ProductImagesCard({

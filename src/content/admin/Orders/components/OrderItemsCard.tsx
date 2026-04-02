@@ -35,7 +35,7 @@ import DeleteTwoToneIcon from '@mui/icons-material/DeleteTwoTone';
 import AddTwoToneIcon from '@mui/icons-material/AddTwoTone';
 import SaveTwoToneIcon from '@mui/icons-material/SaveTwoTone';
 import { OrderItem, Product } from 'src/models';
-import { formatPrice } from 'src/utils';
+import { formatPrice, getProductThumbUrl, prependMediaUrl } from 'src/utils';
 import { productsService } from 'src/api';
 
 export interface EditableItem extends OrderItem {
@@ -127,7 +127,7 @@ function OrderItemsCard({ items: initialItems, orderTotal, onSave }: OrderItemsC
       total: (price * newItem.quantity).toFixed(2),
       product_name: product.name,
       variant_weight: variant.weight,
-      image: product.image || '',
+      image: getProductThumbUrl(product) || '',
       isNew: true
     };
 
@@ -188,7 +188,7 @@ function OrderItemsCard({ items: initialItems, orderTotal, onSave }: OrderItemsC
                 <Box display="flex" gap={1.5}>
                   <Avatar
                     variant="rounded"
-                    src={item.image}
+                    src={prependMediaUrl(item.image)}
                     sx={{
                       width: 40,
                       height: 40,
@@ -304,9 +304,9 @@ function OrderItemsCard({ items: initialItems, orderTotal, onSave }: OrderItemsC
                       <Box display="flex" alignItems="center" gap={1.5}>
                         <Avatar
                           variant="rounded"
-                          src={item.image}
-                          sx={{
-                            width: 40,
+                          src={prependMediaUrl(item.image)}
+                          sx={{ 
+                            width: 40, 
                             height: 40,
                             backgroundColor: alpha(theme.palette.primary.main, 0.08),
                           }}
@@ -423,7 +423,7 @@ function OrderItemsCard({ items: initialItems, orderTotal, onSave }: OrderItemsC
                     {products.map((product) => (
                       <MenuItem key={product.id} value={product.id}>
                         <Box display="flex" alignItems="center" gap={1}>
-                          <Avatar src={product.image} sx={{ width: 24, height: 24 }}>🍃</Avatar>
+                          <Avatar src={getProductThumbUrl(product)} sx={{ width: 24, height: 24 }}>🍃</Avatar>
                           {product.name}
                         </Box>
                       </MenuItem>

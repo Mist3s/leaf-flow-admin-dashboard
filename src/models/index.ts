@@ -336,3 +336,5 @@ export interface ValidationError {
 export interface HTTPValidationError {
   detail: ValidationError[];
 }
+
+export * from './chat';

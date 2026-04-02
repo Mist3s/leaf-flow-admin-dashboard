@@ -38,7 +38,7 @@ import { useConfirmDialog } from 'src/hooks';
 import { Product, Category } from 'src/models';
 import { productsService } from 'src/api';
 import { ROUTES, PRODUCT_TYPE_CONFIG, PAGINATION } from 'src/constants';
-import { formatDate } from 'src/utils';
+import { formatDate, getProductThumbUrl } from 'src/utils';
 
 interface ProductsFilters {
   search: string;
@@ -172,7 +172,7 @@ const ProductsTable: FC<ProductsTableProps> = ({
       <Box display="flex" alignItems="flex-start" gap={2}>
         <Avatar
           variant="rounded"
-          src={product.image}
+          src={getProductThumbUrl(product)}
           sx={{ 
             width: 56, 
             height: 56,
@@ -335,7 +335,7 @@ const ProductsTable: FC<ProductsTableProps> = ({
                         <Box display="flex" alignItems="center" gap={2}>
                           <Avatar
                             variant="rounded"
-                            src={product.image}
+                            src={getProductThumbUrl(product)}
                             sx={{ 
                               width: 48, 
                               height: 48,
