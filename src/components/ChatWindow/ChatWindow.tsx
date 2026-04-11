@@ -2,20 +2,17 @@ import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import {
     Box,
     Card,
-    CardHeader,
     CardContent,
-    Divider,
     TextField,
     IconButton,
     Typography,
     styled,
-    Button
+    alpha,
 } from '@mui/material';
-import { Link } from 'react-router-dom';
 import SendTwoToneIcon from '@mui/icons-material/SendTwoTone';
-import CheckCircleTwoToneIcon from '@mui/icons-material/CheckCircleTwoTone';
 import { useConversations, useActiveChat, useChatActions } from 'src/contexts/chat';
 import { ChatMessage } from 'src/models/chat';
+import { ChatHeader } from './ChatHeader';
 import { MessageBubble } from './MessageBubble';
 import { SystemMessage } from './SystemMessage';
 import { NewMessagesSeparator } from './NewMessagesSeparator';
@@ -36,63 +33,103 @@ function findLastServerMessage(messages: ChatMessage[]): ChatMessage | null {
     return null;
 }
 
-const ChatContainer = styled(Card)(
-    () => `
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  border-radius: 0;
-  box-shadow: none;
-`
-);
+// === Styled components ===
 
-const MessagesList = styled(CardContent)(
-    ({ theme }) => `
-  flex-grow: 1;
-  overflow-y: auto;
-  padding: ${theme.spacing(3)};
-  background-color: ${theme.colors.alpha.black[5]};
-  
-  /* Кастомный скроллбар */
-  &::-webkit-scrollbar {
-      width: 6px;
-  }
-  &::-webkit-scrollbar-track {
-      background: transparent;
-  }
-  &::-webkit-scrollbar-thumb {
-      background-color: ${theme.colors.alpha.black[30]};
-      border-radius: 10px;
-  }
-  &::-webkit-scrollbar-thumb:hover {
-      background-color: ${theme.colors.alpha.black[50]};
-  }
-`
-);
+const ChatContainer = styled(Card)(() => ({
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+    borderRadius: 0,
+    boxShadow: 'none',
+    overflow: 'hidden',
+}));
 
-const InputArea = styled(Box)(
-    ({ theme }) => `
-  display: flex;
-  align-items: center;
-  padding: ${theme.spacing(2)};
-  background-color: ${theme.palette.background.paper};
-  border-bottom-left-radius: ${theme.general.borderRadiusLg};
-  border-bottom-right-radius: ${theme.general.borderRadiusLg};
-`
-);
+const MessagesList = styled(CardContent)(({ theme }) => ({
+    flexGrow: 1,
+    overflowY: 'auto',
+    padding: theme.spacing(3),
+    backgroundColor: theme.colors.alpha.black[5],
+
+    /* Кастомный скроллбар */
+    '&::-webkit-scrollbar': {
+        width: 6,
+    },
+    '&::-webkit-scrollbar-track': {
+        background: 'transparent',
+    },
+    '&::-webkit-scrollbar-thumb': {
+        backgroundColor: theme.colors.alpha.black[30],
+        borderRadius: 10,
+    },
+    '&::-webkit-scrollbar-thumb:hover': {
+        backgroundColor: theme.colors.alpha.black[50],
+    },
+
+    [theme.breakpoints.down('md')]: {
+        padding: theme.spacing(2),
+    },
+}));
+
+const InputArea = styled(Box)(({ theme }) => ({
+    display: 'flex',
+    alignItems: 'center',
+    padding: theme.spacing(2),
+    backgroundColor: theme.palette.background.paper,
+    borderTop: `1px solid ${theme.palette.divider}`,
+
+    [theme.breakpoints.down('md')]: {
+        padding: theme.spacing(1, 1.5),
+    },
+}));
+
+const SendButton = styled(IconButton)(({ theme }) => ({
+    marginLeft: theme.spacing(1.5),
+    padding: theme.spacing(1.25),
+    backgroundColor: theme.palette.primary.main,
+    color: theme.palette.primary.contrastText,
+    borderRadius: '50%',
+    boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`,
+    transition: 'all 0.2s ease',
+
+    '&:hover': {
+        backgroundColor: theme.palette.primary.dark,
+        transform: 'translateY(-1px)',
+        boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.35)}`,
+    },
+
+    '&.Mui-disabled': {
+        backgroundColor: theme.palette.action.disabledBackground,
+        color: theme.palette.action.disabled,
+        boxShadow: 'none',
+        transform: 'none',
+    },
+
+    [theme.breakpoints.down('md')]: {
+        marginLeft: theme.spacing(1),
+        padding: theme.spacing(1),
+    },
+}));
+
+const AssignedBanner = styled(Box)(({ theme }) => ({
+    padding: theme.spacing(1.5, 2),
+    textAlign: 'center',
+    backgroundColor: alpha(theme.palette.info.main, 0.04),
+    borderTop: `1px solid ${theme.palette.divider}`,
+}));
+
+// === Component ===
 
 interface ChatWindowProps {
     conversationId: string;
+    onBack?: () => void;
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId }) => {
+export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, onBack }) => {
     const { conversations } = useConversations();
     const { messages, hasOlderMessages, isLoadingOlder } = useActiveChat();
     const {
         setActiveConversation,
         sendMessage,
-        assignToMe,
-        closeConversation,
         loadOlderMessages,
         markAsRead,
     } = useChatActions();
@@ -227,71 +264,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId }) => {
 
     return (
         <ChatContainer>
-            <CardHeader
-                title={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
-                        {conversation.topic_type === 'order' ? (
-                            <>
-                                <Link
-                                    to={`/admin/orders/${conversation.topic_id}`}
-                                    style={{ textDecoration: 'none', color: 'inherit', fontWeight: 'bold' }}
-                                >
-                                    Заказ #{conversation.topic_id}
-                                </Link>
-                                <span>•</span>
-                            </>
-                        ) : (
-                            <>
-                                <Typography variant="inherit" fontWeight="bold">
-                                    Чат Поддержки
-                                </Typography>
-                                <span>•</span>
-                            </>
-                        )}
-                        {conversation.user_id ? (
-                            <Link
-                                to={`/admin/users/${conversation.user_id}`}
-                                style={{ textDecoration: 'none', color: 'inherit' }}
-                            >
-                                {conversation.user_name || 'Без имени'}
-                            </Link>
-                        ) : (
-                            <Typography variant="inherit">{conversation.user_name || 'Без имени'}</Typography>
-                        )}
-                    </Box>
-                }
-                subheader={conversation.status === 'open' ? 'Открыт' : 'Закрыт'}
-                action={
-                    conversation.status === 'open' && (
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                            {isUnassigned && (
-                                <Button
-                                    variant="contained"
-                                    color="primary"
-                                    size="small"
-                                    onClick={() => assignToMe(conversation.id)}
-                                    sx={{ borderRadius: 8, px: 2, fontWeight: 'bold' }}
-                                >
-                                    Взять в работу
-                                </Button>
-                            )}
-                            {isAssignedToMe && (
-                                <Button
-                                    variant="outlined"
-                                    color="error"
-                                    size="small"
-                                    onClick={() => closeConversation(conversation.id)}
-                                    startIcon={<CheckCircleTwoToneIcon />}
-                                    sx={{ borderRadius: 8, px: 2, fontWeight: 'bold' }}
-                                >
-                                    Завершить диалог
-                                </Button>
-                            )}
-                        </Box>
-                    )
-                }
-            />
-            <Divider />
+            <ChatHeader conversation={conversation} onBack={onBack} />
             <MessagesList ref={scrollRef}>
                 <LoadMoreTrigger
                     isLoading={isLoadingOlder}
@@ -318,7 +291,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId }) => {
                 })}
                 <div ref={messagesEndRef} />
             </MessagesList>
-            <Divider />
             {conversation.status === 'open' && isAssignedToMe && (
                 <InputArea>
                     <TextField
@@ -333,12 +305,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId }) => {
                         size="small"
                         sx={(theme) => ({
                             '& .MuiOutlinedInput-root': {
-                                borderRadius: 12,
+                                borderRadius: 3,
                                 backgroundColor: theme.colors.alpha.black[5],
-                                transition: 'all 0.3s ease',
+                                transition: 'all 0.25s ease',
                                 '&.Mui-focused': {
                                     backgroundColor: 'background.paper',
-                                    boxShadow: `0 4px 10px 0 ${theme.colors.alpha.black[10]}`,
+                                    boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.15)}`,
                                 },
                                 '& fieldset': {
                                     border: 'none',
@@ -346,44 +318,20 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId }) => {
                             },
                         })}
                     />
-                    <IconButton
-                        color="primary"
-                        sx={{
-                            ml: 2,
-                            p: 1.5,
-                            bgcolor: 'primary.main',
-                            color: 'primary.contrastText',
-                            borderRadius: '50%',
-                            boxShadow: '0 4px 8px 0 rgba(0,0,0,0.1)',
-                            transition: 'all 0.2s',
-                            '&:hover': {
-                                bgcolor: 'primary.dark',
-                                transform: 'translateY(-2px)',
-                                boxShadow: '0 6px 12px 0 rgba(0,0,0,0.15)',
-                            },
-                            ...(!inputValue.trim() && {
-                                bgcolor: 'action.disabledBackground',
-                                color: 'action.disabled',
-                                boxShadow: 'none',
-                                '&:hover': {
-                                    transform: 'none',
-                                    bgcolor: 'action.disabledBackground',
-                                },
-                            }),
-                        }}
+                    <SendButton
                         onClick={handleSend}
                         disabled={!inputValue.trim()}
                     >
-                        <SendTwoToneIcon />
-                    </IconButton>
+                        <SendTwoToneIcon fontSize="small" />
+                    </SendButton>
                 </InputArea>
             )}
             {conversation.status === 'open' && !isAssignedToMe && !isUnassigned && (
-                <Box p={2} textAlign="center" bgcolor="background.default" borderTop={1} borderColor="divider">
-                    <Typography color="text.secondary">
-                        Диалог назначен на администратора: {conversation.admin_name || `ID ${conversation.assignee_admin_id}`}
+                <AssignedBanner>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                        Диалог назначен: {conversation.admin_name || `ID ${conversation.assignee_admin_id}`}
                     </Typography>
-                </Box>
+                </AssignedBanner>
             )}
         </ChatContainer>
     );

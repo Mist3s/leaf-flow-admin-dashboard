@@ -1,56 +1,102 @@
-import { Box, Typography, styled } from '@mui/material';
+import React from 'react';
+import { Box, Typography, styled, alpha, keyframes } from '@mui/material';
 import { ChatMessage } from 'src/models/chat';
 import { format } from 'date-fns';
 
-const BubbleWrapper = styled(Box)<{ ismine: string }>(
-    ({ theme, ismine }) => `
-  display: flex;
-  flex-direction: column;
-  align-items: ${ismine === 'true' ? 'flex-end' : 'flex-start'};
-  margin-bottom: ${theme.spacing(2)};
-`
-);
+// === Animations ===
 
-const BubbleCard = styled(Box)<{ ismine: string }>(
-    ({ theme, ismine }) => `
-  background: ${ismine === 'true'
-            ? `linear-gradient(135deg, ${theme.colors.primary.main} 0%, ${theme.palette.primary.light} 100%)`
-            : theme.palette.background.paper
-        };
-  color: ${ismine === 'true'
-            ? theme.palette.primary.contrastText
-            : theme.palette.text.primary
-        };
-  border-radius: 20px;
-  border-bottom-right-radius: ${ismine === 'true' ? 0 : '20px'};
-  border-bottom-left-radius: ${ismine !== 'true' ? 0 : '20px'};
-  padding: ${theme.spacing(1.5, 2.5)};
-  max-width: 80%;
-  box-shadow: ${ismine === 'true'
-            ? '0 4px 12px 0 rgba(85, 105, 255, 0.25)'
-            : '0 2px 8px 0 rgba(0, 0, 0, 0.05)'
-        };
-`
-);
+const slideInRight = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(8px) translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateX(0);
+  }
+`;
+
+const slideInLeft = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(8px) translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateX(0);
+  }
+`;
+
+// === Styled components ===
+
+const BubbleWrapper = styled(Box, {
+    shouldForwardProp: (prop) => prop !== '$isMine',
+})<{ $isMine: boolean }>(({ theme, $isMine }) => ({
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: $isMine ? 'flex-end' : 'flex-start',
+    marginBottom: theme.spacing(1.5),
+    animation: `${$isMine ? slideInRight : slideInLeft} 0.3s ease-out`,
+}));
+
+const BubbleCard = styled(Box, {
+    shouldForwardProp: (prop) => prop !== '$isMine',
+})<{ $isMine: boolean }>(({ theme, $isMine }) => ({
+    background: $isMine
+        ? `linear-gradient(135deg, ${theme.colors.primary.main} 0%, ${theme.palette.primary.light} 100%)`
+        : theme.palette.background.paper,
+    color: $isMine
+        ? theme.palette.primary.contrastText
+        : theme.palette.text.primary,
+    borderRadius: 18,
+    borderBottomRightRadius: $isMine ? 4 : 18,
+    borderBottomLeftRadius: $isMine ? 18 : 4,
+    padding: theme.spacing(1.25, 2),
+    maxWidth: '75%',
+    boxShadow: $isMine
+        ? `0 4px 12px ${alpha(theme.palette.primary.main, 0.2)}`
+        : `0 1px 4px ${alpha(theme.palette.common.black, 0.06)}`,
+    wordBreak: 'break-word',
+
+    [theme.breakpoints.down('md')]: {
+        maxWidth: '85%',
+        padding: theme.spacing(1, 1.5),
+    },
+}));
+
+const TimeStamp = styled(Typography)(({ theme }) => ({
+    marginTop: theme.spacing(0.5),
+    paddingLeft: theme.spacing(1),
+    paddingRight: theme.spacing(1),
+    color: theme.colors.alpha.black[50],
+    fontWeight: 500,
+    fontSize: '11px',
+    letterSpacing: '0.3px',
+    userSelect: 'none',
+}));
+
+// === Component ===
 
 interface MessageBubbleProps {
     message: ChatMessage;
 }
 
-export const MessageBubble = ({ message }: MessageBubbleProps) => {
+export const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
     const isMine = message.sender_kind === 'admin';
 
     return (
-        <BubbleWrapper ismine={isMine.toString()}>
-            <BubbleCard ismine={isMine.toString()}>
-                <Typography variant="body1">{message.body}</Typography>
+        <BubbleWrapper $isMine={isMine}>
+            <BubbleCard $isMine={isMine}>
+                <Typography
+                    variant="body2"
+                    sx={{ lineHeight: 1.5, whiteSpace: 'pre-wrap' }}
+                >
+                    {message.body}
+                </Typography>
             </BubbleCard>
-            <Typography
-                variant="caption"
-                sx={{ mt: 0.5, px: 1.5, color: theme => theme.colors.alpha.black[50], fontWeight: 600, fontSize: '11px', letterSpacing: '0.5px' }}
-            >
+            <TimeStamp variant="caption">
                 {format(message.created_at ? new Date(message.created_at) : new Date(), 'HH:mm')}
-            </Typography>
+            </TimeStamp>
         </BubbleWrapper>
     );
 };

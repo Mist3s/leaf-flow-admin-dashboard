@@ -11,7 +11,8 @@ import {
     Tab,
     Badge,
     styled,
-    useTheme
+    alpha,
+    useTheme,
 } from '@mui/material';
 import { useConversations, useChatActions } from 'src/contexts/chat';
 import { useActiveChat } from 'src/contexts/chat';
@@ -19,27 +20,119 @@ import { formatDistanceToNow } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import SupportAgentTwoToneIcon from '@mui/icons-material/SupportAgentTwoTone';
 import ShoppingBagTwoToneIcon from '@mui/icons-material/ShoppingBagTwoTone';
+import ChatBubbleOutlineRoundedIcon from '@mui/icons-material/ChatBubbleOutlineRounded';
 import { getCurrentAdminId } from 'src/utils/getCurrentAdminId';
 
-const SidebarWrapper = styled(Box)(
-    ({ theme }) => `
-  width: 320px;
-  min-width: 320px;
-  border-right: 1px solid ${theme.palette.divider};
-  display: flex;
-  flex-direction: column;
-  background-color: ${theme.palette.background.paper};
-  height: 100%;
-`
-);
+// === Styled components ===
 
-const ChatList = styled(List)(
-    () => `
-  flex-grow: 1;
-  overflow-y: auto;
-  padding: 0;
-`
-);
+const SidebarWrapper = styled(Box)(({ theme }) => ({
+    width: 340,
+    minWidth: 340,
+    borderRight: `1px solid ${theme.palette.divider}`,
+    display: 'flex',
+    flexDirection: 'column',
+    backgroundColor: theme.palette.background.paper,
+    height: '100%',
+
+    [theme.breakpoints.down('md')]: {
+        width: '100%',
+        minWidth: '100%',
+        borderRight: 'none',
+    },
+}));
+
+const SidebarHeader = styled(Box)(({ theme }) => ({
+    padding: theme.spacing(2, 2.5),
+    paddingBottom: theme.spacing(1),
+}));
+
+const TabsContainer = styled(Box)(({ theme }) => ({
+    display: 'flex',
+    gap: 4,
+    padding: 3,
+    borderRadius: 12,
+    backgroundColor: theme.colors.alpha.black[7],
+}));
+
+const ChatList = styled(List)(() => ({
+    flexGrow: 1,
+    overflowY: 'auto',
+    padding: 0,
+}));
+
+const ConversationItem = styled(ListItemButton)(({ theme }) => ({
+    margin: theme.spacing(0.5, 1.5),
+    padding: theme.spacing(1.5),
+    borderRadius: 14,
+    border: '1px solid transparent',
+    transition: 'all 0.2s ease',
+
+    '&:hover': {
+        backgroundColor: theme.colors.alpha.black[5],
+        transform: 'translateY(-1px)',
+        boxShadow: `0 2px 8px ${alpha(theme.palette.common.black, 0.06)}`,
+        border: `1px solid ${theme.colors.alpha.black[10]}`,
+    },
+
+    '&.Mui-selected': {
+        backgroundColor: alpha(theme.palette.primary.main, 0.06),
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+        '&:hover': {
+            backgroundColor: alpha(theme.palette.primary.main, 0.08),
+        },
+    },
+
+    [theme.breakpoints.down('md')]: {
+        margin: theme.spacing(0.5, 1),
+        padding: theme.spacing(1.5, 1.25),
+    },
+}));
+
+const TopicAvatar = styled(Avatar)<{ $topicType: string }>(({ theme, $topicType }) => ({
+    width: 46,
+    height: 46,
+    borderRadius: 13,
+    backgroundColor:
+        $topicType === 'order'
+            ? theme.colors.warning.lighter
+            : theme.colors.primary.lighter,
+    color:
+        $topicType === 'order'
+            ? theme.colors.warning.main
+            : theme.colors.primary.main,
+    boxShadow: `0 2px 6px ${alpha(theme.palette.common.black, 0.06)}`,
+}));
+
+const UnreadBadge = styled(Badge)(({ theme }) => ({
+    '& .MuiBadge-badge': {
+        position: 'static',
+        transform: 'none',
+        fontWeight: 700,
+        fontSize: 11,
+        minWidth: 20,
+        height: 20,
+        borderRadius: 10,
+        padding: '0 6px',
+        boxShadow: `0 2px 4px ${alpha(theme.palette.error.main, 0.3)}`,
+    },
+}));
+
+const EmptyList = styled(Box)(({ theme }) => ({
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: theme.spacing(6, 3),
+    color: theme.palette.text.secondary,
+    gap: theme.spacing(1),
+}));
+
+const EmptyListIcon = styled(ChatBubbleOutlineRoundedIcon)(({ theme }) => ({
+    fontSize: 40,
+    color: alpha(theme.palette.text.secondary, 0.2),
+}));
+
+// === Component ===
 
 export const ChatSidebar = () => {
     const theme = useTheme();
@@ -105,19 +198,11 @@ export const ChatSidebar = () => {
 
     return (
         <SidebarWrapper>
-            <Box p={2}>
+            <SidebarHeader>
                 <Typography variant="h4" gutterBottom>Чаты</Typography>
-            </Box>
-            <Box px={2} pt={1} pb={1}>
-                <Box
-                    sx={{
-                        display: 'flex',
-                        gap: '4px',
-                        p: '3px',
-                        borderRadius: '12px',
-                        bgcolor: theme => theme.colors.alpha.black[12],
-                    }}
-                >
+            </SidebarHeader>
+            <Box px={2} pb={1}>
+                <TabsContainer>
                     <Tabs
                         variant="fullWidth"
                         value={tabIndex}
@@ -157,51 +242,23 @@ export const ChatSidebar = () => {
                         />
                         <Tab disableRipple sx={tabSx} label="Закрытые" />
                     </Tabs>
-                </Box>
+                </TabsContainer>
             </Box>
             <ChatList>
                 {displayedConversations.map(conv => (
-                    <ListItemButton
+                    <ConversationItem
                         key={conv.id}
                         selected={activeConversationId === conv.id}
                         onClick={() => setActiveConversation(conv.id)}
-                        sx={{
-                            mx: 2,
-                            my: 1,
-                            p: 1.5,
-                            borderRadius: '16px',
-                            border: '1px solid transparent',
-                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                            '&:hover': {
-                                backgroundColor: theme.colors.alpha.black[5],
-                                transform: 'translateY(-2px)',
-                                boxShadow: `0 4px 10px 0 ${theme.colors.alpha.black[10]}`,
-                                border: `1px solid ${theme.colors.alpha.black[10]}`
-                            },
-                            '&.Mui-selected': {
-                                backgroundColor: theme.colors.primary.lighter,
-                                border: `1px solid ${theme.colors.primary.light}`,
-                                '&:hover': {
-                                    backgroundColor: theme.colors.primary.lighter
-                                }
-                            }
-                        }}
                     >
                         <ListItemAvatar>
-                            <Avatar sx={{
-                                bgcolor: conv.topic_type === 'order' ? theme.colors.warning.lighter : theme.colors.primary.lighter,
-                                color: conv.topic_type === 'order' ? theme.colors.warning.main : theme.colors.primary.main,
-                                width: 48,
-                                height: 48,
-                                borderRadius: '14px',
-                                boxShadow: `0 2px 6px 0 ${theme.colors.alpha.black[10]}`
-                            }}>
+                            <TopicAvatar $topicType={conv.topic_type}>
                                 {conv.topic_type === 'order' ? <ShoppingBagTwoToneIcon /> : <SupportAgentTwoToneIcon />}
-                            </Avatar>
+                            </TopicAvatar>
                         </ListItemAvatar>
                         <ListItemText
                             primary={
-                                <Typography variant="subtitle2" noWrap>
+                                <Typography variant="subtitle2" noWrap fontWeight={600}>
                                     {conv.topic_type === 'order'
                                         ? `Заказ #${conv.topic_id} • ${conv.user_name || 'Без имени'}`
                                         : `Поддержка • ${conv.user_name || 'Без имени'}`}
@@ -214,7 +271,7 @@ export const ChatSidebar = () => {
                                             variant="caption"
                                             color="text.secondary"
                                             noWrap
-                                            sx={{ display: 'block', minWidth: 0 }}
+                                            sx={{ display: 'block', minWidth: 0, fontSize: '12px' }}
                                         >
                                             {conv.last_message_preview}
                                         </Typography>
@@ -231,29 +288,24 @@ export const ChatSidebar = () => {
                                                 : 'Нет сообщений'}
                                         </Typography>
                                         {conv.unread_count > 0 && (
-                                            <Badge
+                                            <UnreadBadge
                                                 badgeContent={conv.unread_count}
                                                 color="error"
-                                                sx={{
-                                                    '& .MuiBadge-badge': {
-                                                        position: 'static',
-                                                        transform: 'none'
-                                                    }
-                                                }}
                                             />
                                         )}
                                     </Box>
                                 </Box>
                             }
                         />
-                    </ListItemButton>
+                    </ConversationItem>
                 ))}
                 {displayedConversations.length === 0 && (
-                    <Box p={3} textAlign="center">
-                        <Typography variant="body2" color="text.secondary">
+                    <EmptyList>
+                        <EmptyListIcon />
+                        <Typography variant="body2" color="text.secondary" fontWeight={500}>
                             Нет диалогов
                         </Typography>
-                    </Box>
+                    </EmptyList>
                 )}
             </ChatList>
         </SidebarWrapper>
