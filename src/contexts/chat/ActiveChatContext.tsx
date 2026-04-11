@@ -102,7 +102,9 @@ export function activeChatReducer(
 
         case 'OPTIMISTIC_CONFIRMED': {
             const messages = state.messages.map((m) =>
-                m.client_msg_id === action.clientMsgId ? action.message : m
+                m.client_msg_id === action.clientMsgId
+                    ? { ...m, ...action.message }
+                    : m
             );
             return { ...state, messages };
         }

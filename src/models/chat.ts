@@ -92,6 +92,16 @@ export interface WsReadStateUpdated {
   data: { conversation_id: string; unread_count: number };
 }
 
+export interface WsMessageAck {
+  type: 'message.ack';
+  data: {
+    client_msg_id: string;
+    id: string;
+    created_at: string;
+    conversation_id: string;
+  };
+}
+
 export interface WsPong {
   type: 'pong';
   data: Record<string, never>;
@@ -107,5 +117,6 @@ export type WsOutboundEvent =
   | WsConversationUpdated
   | WsConversationCreated
   | WsReadStateUpdated
+  | WsMessageAck
   | WsPong
   | WsError;

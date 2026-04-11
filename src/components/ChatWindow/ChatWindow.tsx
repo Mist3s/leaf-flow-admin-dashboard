@@ -15,11 +15,26 @@ import { Link } from 'react-router-dom';
 import SendTwoToneIcon from '@mui/icons-material/SendTwoTone';
 import CheckCircleTwoToneIcon from '@mui/icons-material/CheckCircleTwoTone';
 import { useConversations, useActiveChat, useChatActions } from 'src/contexts/chat';
+import { ChatMessage } from 'src/models/chat';
 import { MessageBubble } from './MessageBubble';
 import { SystemMessage } from './SystemMessage';
 import { NewMessagesSeparator } from './NewMessagesSeparator';
 import { LoadMoreTrigger } from './LoadMoreTrigger';
 import { getCurrentAdminId } from 'src/utils/getCurrentAdminId';
+
+/**
+ * Найти последнее сообщение с валидным серверным id.
+ * Оптимистичные сообщения (ещё без ACK) имеют id === client_msg_id — их пропускаем.
+ */
+function findLastServerMessage(messages: ChatMessage[]): ChatMessage | null {
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        if (msg.id && msg.id !== msg.client_msg_id) {
+            return msg;
+        }
+    }
+    return null;
+}
 
 const ChatContainer = styled(Card)(
     () => `
@@ -127,9 +142,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId }) => {
 
         hasInitialScrolled.current = conversationId;
 
-        // Пометить чат как прочитанный
+        // Пометить чат как прочитанный — ищем последнее сообщение с серверным id
         if (unread > 0) {
-            markAsRead(conversationId);
+            const lastServerMsg = findLastServerMessage(messages);
+            if (lastServerMsg) {
+                markAsRead(conversationId, lastServerMsg.id);
+            }
         }
     }, [conversationId, messages, markAsRead]);
 
@@ -161,7 +179,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId }) => {
 
         // Авто-markAsRead при просмотре нового сообщения
         if (isAtBottom && lastMsg.sender_kind !== 'admin') {
-            markAsRead(conversationId);
+            const lastServerMsg = findLastServerMessage(messages);
+            if (lastServerMsg) {
+                markAsRead(conversationId, lastServerMsg.id);
+            }
         }
     }, [messages, conversationId, markAsRead]);
 

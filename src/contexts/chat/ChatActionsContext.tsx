@@ -13,8 +13,8 @@ export interface ChatActions {
     closeConversation: (conversationId: string) => Promise<void>;
     /** Подгрузить ранние сообщения (cursor-пагинация) */
     loadOlderMessages: () => Promise<void>;
-    /** Пометить диалог как прочитанный */
-    markAsRead: (conversationId: string) => void;
+    /** Пометить диалог как прочитанный (lastMessageId — серверный UUID последнего сообщения) */
+    markAsRead: (conversationId: string, lastMessageId: string) => void;
     /** Принудительно обновить список диалогов */
     refreshConversations: () => Promise<void>;
 }

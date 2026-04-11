@@ -132,6 +132,33 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 break;
             }
 
+            case 'message.ack': {
+                const { client_msg_id, id, created_at, conversation_id } = event.data;
+
+                // Обновить оптимистичное сообщение серверными данными (id + created_at)
+                if (activeConvIdRef.current === conversation_id) {
+                    chatDispatch({
+                        type: 'OPTIMISTIC_CONFIRMED',
+                        clientMsgId: client_msg_id,
+                        message: {
+                            id,
+                            created_at,
+                            conversation_id,
+                            client_msg_id,
+                        } as ChatMessage,
+                    });
+                }
+
+                // Обновить timestamp в conversation list
+                convDispatch({
+                    type: 'MESSAGE_RECEIVED',
+                    conversationId: conversation_id,
+                    preview: '', // preview уже установлен при оптимистичной отправке
+                    timestamp: created_at,
+                });
+                break;
+            }
+
             case 'conversation.updated': {
                 const { conversation_id, action, ...rest } = event.data;
                 if (action === 'closed') {
@@ -313,18 +340,12 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
         },
 
-        markAsRead: (conversationId: string) => {
+        markAsRead: (conversationId: string, lastMessageId: string) => {
             // Оптимистичное обнуление
             convDispatch({ type: 'UNREAD_UPDATED', conversationId, unreadCount: 0 });
 
-            // Отправить mark_read с id последнего сообщения
-            const messages = chatMessagesRef.current;
-            if (messages.length > 0) {
-                const lastMsg = messages[messages.length - 1];
-                if (lastMsg.id) {
-                    chatWsClient.markRead(conversationId, lastMsg.id);
-                }
-            }
+            // Отправить mark_read с серверным id последнего сообщения
+            chatWsClient.markRead(conversationId, lastMessageId);
         },
 
         refreshConversations,
