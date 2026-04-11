@@ -17,6 +17,7 @@ import { MessageBubble } from './MessageBubble';
 import { SystemMessage } from './SystemMessage';
 import { NewMessagesSeparator } from './NewMessagesSeparator';
 import { LoadMoreTrigger } from './LoadMoreTrigger';
+import { EmojiPickerButton } from './EmojiPickerButton';
 import { getCurrentAdminId } from 'src/utils/getCurrentAdminId';
 
 /**
@@ -137,6 +138,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, onBack }
     const [inputValue, setInputValue] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     const conversation = conversations.find((c) => c.id === conversationId);
 
@@ -230,6 +232,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, onBack }
         sendMessage(inputValue.trim());
         setInputValue('');
         setSeparatorVisible(false);
+
+        // Вернуть фокус на поле ввода (fix потери клавиатуры на mobile)
+        requestAnimationFrame(() => {
+            inputRef.current?.focus();
+        });
     }, [inputValue, sendMessage]);
 
     const handleKeyDown = useCallback(
@@ -241,6 +248,16 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, onBack }
         },
         [handleSend]
     );
+
+    const handleEmojiSelect = useCallback((emoji: string) => {
+        setInputValue((prev) => prev + emoji);
+    }, []);
+
+    const handlePickerClose = useCallback(() => {
+        requestAnimationFrame(() => {
+            inputRef.current?.focus();
+        });
+    }, []);
 
     const currentAdminId = useMemo(() => getCurrentAdminId(), []);
     const isAssignedToMe = conversation?.assignee_admin_id === currentAdminId;
@@ -293,8 +310,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, onBack }
             </MessagesList>
             {conversation.status === 'open' && isAssignedToMe && (
                 <InputArea>
+                    <EmojiPickerButton onEmojiSelect={handleEmojiSelect} onPickerClose={handlePickerClose} />
                     <TextField
                         fullWidth
+                        inputRef={inputRef}
                         placeholder="Введите сообщение..."
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
@@ -319,6 +338,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId, onBack }
                         })}
                     />
                     <SendButton
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={handleSend}
                         disabled={!inputValue.trim()}
                     >
