@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import { ChatSidebar } from './Sidebar';
 import { ChatWindow } from 'src/components/ChatWindow';
-import { useChat } from 'src/contexts/ChatContext';
+import { useActiveChat } from 'src/contexts/chat';
 
 const RootWrapper = styled(Box)(
     () => `
@@ -25,7 +25,7 @@ const ChatContent = styled(Box)(
 );
 
 function ChatPage() {
-    const { activeConversationId } = useChat();
+    const { conversationId } = useActiveChat();
 
     return (
         <>
@@ -35,8 +35,8 @@ function ChatPage() {
             <RootWrapper>
                 <ChatSidebar />
                 <ChatContent>
-                    {activeConversationId ? (
-                        <ChatWindow conversationId={activeConversationId} />
+                    {conversationId ? (
+                        <ChatWindow conversationId={conversationId} />
                     ) : (
                         <Box display="flex" alignItems="center" justifyContent="center" height="100%">
                             <Typography variant="h4" color="text.secondary">

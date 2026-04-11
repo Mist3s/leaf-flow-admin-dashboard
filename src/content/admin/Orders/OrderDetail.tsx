@@ -18,7 +18,7 @@ import {
 } from './components';
 import { useOrderDetail } from './hooks/useOrderDetail';
 import { formatDateTime, formatOrderId } from 'src/utils';
-import { useChat } from 'src/contexts/ChatContext';
+import { useConversations } from 'src/contexts/chat';
 import { ChatWindow } from 'src/components/ChatWindow';
 
 function OrderDetail() {
@@ -57,9 +57,9 @@ function OrderDetail() {
 
   const orderItems = order.items.map(item => ({ ...item, isNew: false }));
 
-  const { conversations } = useChat();
+  const { conversations } = useConversations();
   const orderConversation = conversations.find(
-    c => c.topic_type === 'order' && c.topic_id === Number(order.id)
+    c => c.topic_type === 'order' && c.topic_id === String(order.id)
   );
 
   return (

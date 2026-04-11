@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import {
     Box,
     Card,
@@ -14,14 +14,15 @@ import {
 import { Link } from 'react-router-dom';
 import SendTwoToneIcon from '@mui/icons-material/SendTwoTone';
 import CheckCircleTwoToneIcon from '@mui/icons-material/CheckCircleTwoTone';
-import { useChat } from 'src/contexts/ChatContext';
+import { useConversations, useActiveChat, useChatActions } from 'src/contexts/chat';
 import { MessageBubble } from './MessageBubble';
 import { SystemMessage } from './SystemMessage';
 import { NewMessagesSeparator } from './NewMessagesSeparator';
+import { LoadMoreTrigger } from './LoadMoreTrigger';
 import { getCurrentAdminId } from 'src/utils/getCurrentAdminId';
 
 const ChatContainer = styled(Card)(
-    ({ theme }) => `
+    () => `
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -70,154 +71,128 @@ interface ChatWindowProps {
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId }) => {
+    const { conversations } = useConversations();
+    const { messages, hasOlderMessages, isLoadingOlder } = useActiveChat();
     const {
-        messages,
-        fetchMessages,
+        setActiveConversation,
         sendMessage,
-        conversations,
         assignToMe,
         closeConversation,
-        setActiveConversationId,
-        clearUnreadCount,
-        unreadCounts,
-        lastReadMessageIds,
-        isWindowActive,
-        markAsSeen
-    } = useChat();
+        loadOlderMessages,
+        markAsRead,
+    } = useChatActions();
 
     const [inputValue, setInputValue] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const conversation = conversations.find(c => c.id === conversationId);
-    const conversationMessages = messages[conversationId] || [];
+    const conversation = conversations.find((c) => c.id === conversationId);
 
-    const [lastSeenId, setLastSeenId] = useState<string | null>(null);
-    const [isSeparatorVisible, setIsSeparatorVisible] = useState(false);
-    const [isUserActive, setIsUserActive] = useState(true);
+    // === Количество непрочитанных при открытии (для разделителя) ===
+    const initialUnreadRef = useRef<number>(0);
+    const [separatorVisible, setSeparatorVisible] = useState(false);
     const separatorRef = useRef<HTMLDivElement>(null);
-    const activityTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-    // Трекинг пользовательской активности (движение мыши, нажатия клавиш)
-    useEffect(() => {
-        const handleActivity = () => {
-            setIsUserActive(true);
-            if (activityTimerRef.current) clearTimeout(activityTimerRef.current);
-            activityTimerRef.current = setTimeout(() => {
-                setIsUserActive(false);
-            }, 5000); // 5 секунд бездействия = неактивен
-        };
-
-        window.addEventListener('mousemove', handleActivity);
-        window.addEventListener('keydown', handleActivity);
-        handleActivity(); // Начальное состояние
-
-        return () => {
-            window.removeEventListener('mousemove', handleActivity);
-            window.removeEventListener('keydown', handleActivity);
-            if (activityTimerRef.current) clearTimeout(activityTimerRef.current);
-        };
-    }, []);
-
     const hasInitialScrolled = useRef<string | null>(null);
 
-    // Инициализация при открытии чата
+    // === Инициализация при открытии диалога ===
     useEffect(() => {
-        setActiveConversationId(conversationId);
-        fetchMessages(conversationId);
-        // Сбрасываем флаг скролла при смене чата
+        // Запоминаем unread ДО открытия (для разделителя)
+        const conv = conversations.find((c) => c.id === conversationId);
+        initialUnreadRef.current = conv?.unread_count || 0;
         hasInitialScrolled.current = null;
 
+        setActiveConversation(conversationId);
+
         return () => {
-            setActiveConversationId(null);
+            setActiveConversation(null);
         };
-    }, [conversationId, setActiveConversationId, fetchMessages]);
+    }, [conversationId, setActiveConversation]);
 
-    // Логика первого скролла и установки разделителя (срабатывает когда пришли сообщения)
+    // === Первый скролл + разделитель (когда пришли сообщения) ===
     useEffect(() => {
-        if (hasInitialScrolled.current === conversationId || conversationMessages.length === 0) return;
+        if (hasInitialScrolled.current === conversationId || messages.length === 0) return;
 
-        const unreadCount = unreadCounts[conversationId] || 0;
+        const unread = initialUnreadRef.current;
 
-        if (unreadCount > 0 && conversationMessages.length > unreadCount) {
-            const lastReadIdx = conversationMessages.length - unreadCount - 1;
-            setLastSeenId(conversationMessages[lastReadIdx].id);
-            setIsSeparatorVisible(true);
-
-            // Скроллим к разделителю
+        if (unread > 0 && messages.length > unread) {
+            setSeparatorVisible(true);
+            // Скролл к разделителю
             setTimeout(() => {
-                if (separatorRef.current) {
-                    separatorRef.current.scrollIntoView({ behavior: 'auto', block: 'center' });
-                }
+                separatorRef.current?.scrollIntoView({ behavior: 'auto', block: 'center' });
             }, 100);
         } else {
-            setLastSeenId(conversationMessages[conversationMessages.length - 1].id);
-            setIsSeparatorVisible(false);
-            if (messagesEndRef.current) {
-                messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
-            }
+            setSeparatorVisible(false);
+            messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
         }
 
         hasInitialScrolled.current = conversationId;
-        clearUnreadCount(conversationId);
-    }, [conversationId, conversationMessages, unreadCounts, clearUnreadCount]);
 
-    // Управление видимостью разделителя (плавное скрытие через 3с активности)
+        // Пометить чат как прочитанный
+        if (unread > 0) {
+            markAsRead(conversationId);
+        }
+    }, [conversationId, messages, markAsRead]);
+
+    // === Скрытие разделителя через 3 секунды ===
     useEffect(() => {
-        if (!isWindowActive || !isUserActive || !isSeparatorVisible) return;
+        if (!separatorVisible) return;
 
         const timer = setTimeout(() => {
-            setIsSeparatorVisible(false);
-            if (conversationMessages.length > 0) {
-                const latestId = conversationMessages[conversationMessages.length - 1].id;
-                markAsSeen(conversationId, latestId);
-                setLastSeenId(latestId);
-            }
-        }, 3000); // 3 секунды висит, потом исчезает
+            setSeparatorVisible(false);
+        }, 3000);
 
         return () => clearTimeout(timer);
-    }, [isWindowActive, isUserActive, isSeparatorVisible, conversationId, conversationMessages, markAsSeen]);
+    }, [separatorVisible]);
 
-    // Обработка новых входящих сообщений в реальном времени (после инициализации)
+    // === Автоскролл при новых сообщениях ===
     useEffect(() => {
-        if (conversationMessages.length === 0 || hasInitialScrolled.current !== conversationId) return;
-        const lastMsg = conversationMessages[conversationMessages.length - 1];
-
-        // Если окно активно и пользователь активен - сразу помечаем как прочитанное (без разделителя)
-        if (isWindowActive && isUserActive && lastMsg.sender_kind !== 'admin') {
-            setLastSeenId(lastMsg.id);
-            markAsSeen(conversationId, lastMsg.id);
-        }
-
-        if (!scrollRef.current || !messagesEndRef.current) return;
+        if (messages.length === 0 || hasInitialScrolled.current !== conversationId) return;
 
         const container = scrollRef.current;
+        if (!container || !messagesEndRef.current) return;
+
+        const lastMsg = messages[messages.length - 1];
         const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 150;
         const isMyMessage = lastMsg?.sender_kind === 'admin';
 
-        if ((isWindowActive && isAtBottom) || isMyMessage) {
+        if (isAtBottom || isMyMessage) {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
-    }, [conversationMessages, isWindowActive, isUserActive, conversationId, markAsSeen]);
 
-    const handleSend = () => {
+        // Авто-markAsRead при просмотре нового сообщения
+        if (isAtBottom && lastMsg.sender_kind !== 'admin') {
+            markAsRead(conversationId);
+        }
+    }, [messages, conversationId, markAsRead]);
+
+    // === Handlers ===
+
+    const handleSend = useCallback(() => {
         if (!inputValue.trim()) return;
         sendMessage(inputValue.trim());
         setInputValue('');
-        setIsSeparatorVisible(false);
-    };
+        setSeparatorVisible(false);
+    }, [inputValue, sendMessage]);
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSend();
-        }
-    };
+    const handleKeyDown = useCallback(
+        (e: React.KeyboardEvent) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+            }
+        },
+        [handleSend]
+    );
 
     const currentAdminId = useMemo(() => getCurrentAdminId(), []);
-
     const isAssignedToMe = conversation?.assignee_admin_id === currentAdminId;
     const isUnassigned = conversation?.assignee_admin_id === null;
+
+    // === Разделитель: вычисляем позицию ===
+    const separatorIndex = useMemo(() => {
+        if (!separatorVisible || initialUnreadRef.current === 0) return -1;
+        return messages.length - initialUnreadRef.current;
+    }, [separatorVisible, messages.length]);
 
     if (!conversation) {
         return (
@@ -236,19 +211,27 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId }) => {
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
                         {conversation.topic_type === 'order' ? (
                             <>
-                                <Link to={`/admin/orders/${conversation.topic_id}`} style={{ textDecoration: 'none', color: 'inherit', fontWeight: 'bold' }}>
+                                <Link
+                                    to={`/admin/orders/${conversation.topic_id}`}
+                                    style={{ textDecoration: 'none', color: 'inherit', fontWeight: 'bold' }}
+                                >
                                     Заказ #{conversation.topic_id}
                                 </Link>
                                 <span>•</span>
                             </>
                         ) : (
                             <>
-                                <Typography variant="inherit" fontWeight="bold">Чат Поддержки</Typography>
+                                <Typography variant="inherit" fontWeight="bold">
+                                    Чат Поддержки
+                                </Typography>
                                 <span>•</span>
                             </>
                         )}
                         {conversation.user_id ? (
-                            <Link to={`/admin/users/${conversation.user_id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                            <Link
+                                to={`/admin/users/${conversation.user_id}`}
+                                style={{ textDecoration: 'none', color: 'inherit' }}
+                            >
                                 {conversation.user_name || 'Без имени'}
                             </Link>
                         ) : (
@@ -289,25 +272,26 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId }) => {
             />
             <Divider />
             <MessagesList ref={scrollRef}>
-                {conversationMessages.map((msg, index) => {
-                    const isNewMessage = lastSeenId &&
-                        index > 0 &&
-                        conversationMessages[index - 1].id === lastSeenId &&
-                        msg.id !== lastSeenId;
-
-                    const showSeparator = isNewMessage && msg.sender_kind !== 'admin';
+                <LoadMoreTrigger
+                    isLoading={isLoadingOlder}
+                    hasMore={hasOlderMessages}
+                    onLoadMore={loadOlderMessages}
+                />
+                {messages.map((msg, index) => {
+                    const showSeparator = index === separatorIndex && separatorVisible;
 
                     return (
-                        <React.Fragment key={msg.id}>
+                        <React.Fragment key={msg.id || msg.client_msg_id}>
                             {showSeparator && (
                                 <div ref={separatorRef}>
-                                    <NewMessagesSeparator visible={isSeparatorVisible} />
+                                    <NewMessagesSeparator visible={separatorVisible} />
                                 </div>
                             )}
-                            {msg.type === 'system'
-                                ? <SystemMessage message={msg} />
-                                : <MessageBubble message={msg} />
-                            }
+                            {msg.type === 'system' ? (
+                                <SystemMessage message={msg} />
+                            ) : (
+                                <MessageBubble message={msg} />
+                            )}
                         </React.Fragment>
                     );
                 })}
@@ -333,12 +317,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId }) => {
                                 transition: 'all 0.3s ease',
                                 '&.Mui-focused': {
                                     backgroundColor: 'background.paper',
-                                    boxShadow: `0 4px 10px 0 ${theme.colors.alpha.black[10]}`
+                                    boxShadow: `0 4px 10px 0 ${theme.colors.alpha.black[10]}`,
                                 },
                                 '& fieldset': {
-                                    border: 'none'
-                                }
-                            }
+                                    border: 'none',
+                                },
+                            },
                         })}
                     />
                     <IconButton
@@ -362,9 +346,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversationId }) => {
                                 boxShadow: 'none',
                                 '&:hover': {
                                     transform: 'none',
-                                    bgcolor: 'action.disabledBackground'
-                                }
-                            })
+                                    bgcolor: 'action.disabledBackground',
+                                },
+                            }),
                         }}
                         onClick={handleSend}
                         disabled={!inputValue.trim()}

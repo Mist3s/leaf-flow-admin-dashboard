@@ -20,7 +20,7 @@ import CategoryTwoToneIcon from '@mui/icons-material/CategoryTwoTone';
 import PeopleTwoToneIcon from '@mui/icons-material/PeopleTwoTone';
 import RateReviewTwoToneIcon from '@mui/icons-material/RateReviewTwoTone';
 import ChatTwoToneIcon from '@mui/icons-material/ChatTwoTone';
-import { useChat } from 'src/contexts/ChatContext';
+import { useConversations } from 'src/contexts/chat';
 
 const MenuWrapper = styled(Box)(
   ({ theme }) => `
@@ -166,7 +166,7 @@ const SubMenuWrapper = styled(Box)(
 
 function SidebarMenu() {
   const { closeSidebar } = useContext(SidebarContext);
-  const { unreadCount } = useChat();
+  const { totalUnread } = useConversations();
 
   return (
     <>
@@ -275,8 +275,8 @@ function SidebarMenu() {
                   startIcon={<ChatTwoToneIcon />}
                 >
                   Чат
-                  {unreadCount > 0 && (
-                    <Badge badgeContent={unreadCount} color="error" />
+                  {totalUnread > 0 && (
+                    <Badge badgeContent={totalUnread} color="error" />
                   )}
                 </Button>
               </ListItem>

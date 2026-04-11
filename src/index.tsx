@@ -8,7 +8,7 @@ import { SidebarProvider } from 'src/contexts/SidebarContext';
 import { AuthProvider } from 'src/contexts/AuthContext';
 import * as serviceWorker from 'src/serviceWorker';
 
-import { ChatProvider } from 'src/contexts/ChatContext';
+import { ChatProvider } from 'src/contexts/chat';
 
 ReactDOM.render(
   <HelmetProvider>

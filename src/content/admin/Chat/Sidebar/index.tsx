@@ -13,7 +13,8 @@ import {
     styled,
     useTheme
 } from '@mui/material';
-import { useChat } from 'src/contexts/ChatContext';
+import { useConversations, useChatActions } from 'src/contexts/chat';
+import { useActiveChat } from 'src/contexts/chat';
 import { formatDistanceToNow } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import SupportAgentTwoToneIcon from '@mui/icons-material/SupportAgentTwoTone';
@@ -42,7 +43,9 @@ const ChatList = styled(List)(
 
 export const ChatSidebar = () => {
     const theme = useTheme();
-    const { conversations, activeConversationId, setActiveConversationId, unreadCounts } = useChat();
+    const { conversations } = useConversations();
+    const { conversationId: activeConversationId } = useActiveChat();
+    const { setActiveConversation } = useChatActions();
     const [tabIndex, setTabIndex] = useState(0);
 
     const currentAdminId = getCurrentAdminId();
@@ -161,7 +164,7 @@ export const ChatSidebar = () => {
                     <ListItemButton
                         key={conv.id}
                         selected={activeConversationId === conv.id}
-                        onClick={() => setActiveConversationId(conv.id)}
+                        onClick={() => setActiveConversation(conv.id)}
                         sx={{
                             mx: 2,
                             my: 1,
@@ -205,24 +208,41 @@ export const ChatSidebar = () => {
                                 </Typography>
                             }
                             secondary={
-                                <Box display="flex" alignItems="center" mt={0.5} gap={1}>
-                                    <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', flex: 1, minWidth: 0 }}>
-                                        {conv.last_message_at
-                                            ? formatDistanceToNow(new Date(conv.last_message_at), { addSuffix: true, locale: ru })
-                                            : 'Нет сообщений'}
-                                    </Typography>
-                                    {unreadCounts[conv.id] > 0 && (
-                                        <Badge
-                                            badgeContent={unreadCounts[conv.id]}
-                                            color="error"
-                                            sx={{
-                                                '& .MuiBadge-badge': {
-                                                    position: 'static',
-                                                    transform: 'none'
-                                                }
-                                            }}
-                                        />
+                                <Box display="flex" flexDirection="column" mt={0.5} gap={0.25}>
+                                    {conv.last_message_preview && (
+                                        <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                            noWrap
+                                            sx={{ display: 'block', minWidth: 0 }}
+                                        >
+                                            {conv.last_message_preview}
+                                        </Typography>
                                     )}
+                                    <Box display="flex" alignItems="center" gap={1}>
+                                        <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                            noWrap
+                                            sx={{ display: 'block', flex: 1, minWidth: 0, fontSize: '11px' }}
+                                        >
+                                            {conv.last_message_at
+                                                ? formatDistanceToNow(new Date(conv.last_message_at), { addSuffix: true, locale: ru })
+                                                : 'Нет сообщений'}
+                                        </Typography>
+                                        {conv.unread_count > 0 && (
+                                            <Badge
+                                                badgeContent={conv.unread_count}
+                                                color="error"
+                                                sx={{
+                                                    '& .MuiBadge-badge': {
+                                                        position: 'static',
+                                                        transform: 'none'
+                                                    }
+                                                }}
+                                            />
+                                        )}
+                                    </Box>
                                 </Box>
                             }
                         />

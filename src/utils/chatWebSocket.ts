@@ -1,22 +1,16 @@
 import { ACCESS_TOKEN_KEY, WS_CHAT_URL } from '../api/config';
-import { ChatMessage } from '../models/chat';
+import { WsOutboundEvent } from '../models/chat';
 
-type WsEventType = 'subscribe' | 'message.send' | 'mark_read';
+type EventHandler = (event: WsOutboundEvent) => void;
 
-interface WsMessageOut {
-    type: WsEventType;
-    data: any;
-}
-
-export type ChatMessageHandler = (conversationId: string, message: ChatMessage) => void;
-export type ConversationUpdateHandler = (conversationId: string, action: string) => void;
-
+/**
+ * Чистый WebSocket-транспорт для чата.
+ * Не знает о React. Только отправка/получение типизированных событий.
+ */
 class ChatWebSocket {
     private ws: WebSocket | null = null;
 
-    private messageHandlers: Set<ChatMessageHandler> = new Set();
-
-    private updateHandlers: Set<ConversationUpdateHandler> = new Set();
+    private handlers = new Set<EventHandler>();
 
     private isConnecting = false;
 
@@ -24,7 +18,12 @@ class ChatWebSocket {
 
     private maxReconnectAttempts = 5;
 
-    private messageQueue: WsMessageOut[] = [];
+    private messageQueue: string[] = [];
+
+    private pingInterval: ReturnType<typeof setInterval> | null = null;
+
+    private onReconnectCallback: (() => void) | null = null;
+
 
     connect() {
         if (this.ws || this.isConnecting) return;
@@ -33,75 +32,117 @@ class ChatWebSocket {
         if (!token) return;
 
         this.isConnecting = true;
-
-        const url = `${WS_CHAT_URL}?token=${token}`;
-        this.ws = new WebSocket(url);
+        this.ws = new WebSocket(`${WS_CHAT_URL}?token=${token}`);
 
         this.ws.onopen = () => {
+            const wasReconnect = this.reconnectAttempts > 0;
             this.isConnecting = false;
             this.reconnectAttempts = 0;
-            // Flush queue
-            while (this.messageQueue.length > 0) {
-                const queuedMsg = this.messageQueue.shift();
-                if (queuedMsg) this.ws?.send(JSON.stringify(queuedMsg));
+            this.flushQueue();
+            this.startPing();
+
+            if (wasReconnect && this.onReconnectCallback) {
+                this.onReconnectCallback();
             }
         };
 
         this.ws.onmessage = (event) => {
             try {
-                const msg = JSON.parse(event.data);
-
-                // Обработка любых сообщений (гибкая проверка типа)
-                const isMessage = msg.type === 'message.created' || msg.type === 'message_created' || msg.type === 'new_message' || msg.type === 'chat.message_created';
-                const isUpdate = msg.type?.includes('conversation') || msg.topic_type;
-
-                if (isMessage) {
-                    const data = msg.data || msg;
-                    // В новом формате весь объект data является самим сообщением (содержит body, type и т.д.)
-                    const messageInfo = data.message || data;
-
-                    // У сервера поле называется message_id вместо id
-                    if (messageInfo.message_id && !messageInfo.id) {
-                        messageInfo.id = messageInfo.message_id;
-                    }
-
-                    // У сервера может отсутствовать created_at
-                    if (!messageInfo.created_at) {
-                        messageInfo.created_at = new Date().toISOString();
-                    }
-
-                    const convId = data.conversation_id || data.id || messageInfo.conversation_id || messageInfo.id;
-                    if (convId && messageInfo) this.notifyMessageHandlers(convId, messageInfo);
-                } else if (isUpdate) {
-                    const data = msg.data || msg;
-                    const convId = data.conversation_id || data.id;
-                    if (convId) this.notifyUpdateHandlers(convId, msg.type || 'updated');
-                } else if (msg.conversation_id) { // Fallback, если сервер не прислал `type`
-                    if (msg.body) this.notifyMessageHandlers(msg.conversation_id, msg);
-                    else this.notifyUpdateHandlers(msg.conversation_id, 'updated');
-                }
+                const msg = JSON.parse(event.data) as WsOutboundEvent;
+                this.handlers.forEach((h) => h(msg));
             } catch (e) {
-                console.error('Failed to parse WS message', e, event.data);
+                console.error('[ChatWS] Failed to parse:', e, event.data);
             }
         };
 
         this.ws.onclose = () => {
-            this.ws = null;
-            this.isConnecting = false;
+            this.cleanup();
             this.handleReconnect();
         };
 
         this.ws.onerror = (error) => {
-            console.error('Chat WS Error:', error);
+            console.error('[ChatWS] Error:', error);
             this.ws?.close();
         };
     }
 
     disconnect() {
-        if (this.ws) {
-            this.ws.close();
-            this.ws = null;
+        this.reconnectAttempts = this.maxReconnectAttempts;
+        this.ws?.close();
+        this.cleanup();
+    }
+
+    subscribe(conversationId: string) {
+        this.send('subscribe', { conversation_id: conversationId });
+    }
+
+    sendMessage(conversationId: string, body: string, clientMsgId: string) {
+        this.send('message.send', {
+            conversation_id: conversationId,
+            client_msg_id: clientMsgId,
+            type: 'text',
+            body,
+        });
+    }
+
+    markRead(conversationId: string, lastMessageId: string) {
+        this.send('mark_read', {
+            conversation_id: conversationId,
+            last_message_id: lastMessageId,
+        });
+    }
+
+    /** Подписка на все входящие WS-события. Возвращает unsubscribe. */
+    onEvent(handler: EventHandler): () => void {
+        this.handlers.add(handler);
+        return () => this.handlers.delete(handler);
+    }
+
+    /** Колбэк, вызываемый при успешном реконнекте (для рефреша данных). */
+    setOnReconnect(callback: (() => void) | null) {
+        this.onReconnectCallback = callback;
+    }
+
+    get isConnected(): boolean {
+        return this.ws?.readyState === WebSocket.OPEN;
+    }
+
+    // --- Private ---
+
+    private send(type: string, data: Record<string, unknown>) {
+        const payload = JSON.stringify({ type, data });
+        if (this.ws?.readyState === WebSocket.OPEN) {
+            this.ws.send(payload);
+        } else {
+            this.messageQueue.push(payload);
         }
+    }
+
+    private flushQueue() {
+        while (this.messageQueue.length > 0) {
+            const msg = this.messageQueue.shift()!;
+            this.ws?.send(msg);
+        }
+    }
+
+    private startPing() {
+        this.stopPing();
+        this.pingInterval = setInterval(() => {
+            this.send('ping', {});
+        }, 30_000);
+    }
+
+    private stopPing() {
+        if (this.pingInterval) {
+            clearInterval(this.pingInterval);
+            this.pingInterval = null;
+        }
+    }
+
+    private cleanup() {
+        this.ws = null;
+        this.isConnecting = false;
+        this.stopPing();
     }
 
     private handleReconnect() {
@@ -109,58 +150,6 @@ class ChatWebSocket {
             this.reconnectAttempts++;
             setTimeout(() => this.connect(), 2000 * this.reconnectAttempts);
         }
-    }
-
-    subscribe(conversationId: string) {
-        this.send({ type: 'subscribe', data: { conversation_id: conversationId } });
-    }
-
-    sendMessage(conversationId: string, body: string, clientMsgId: string) {
-        this.send({
-            type: 'message.send',
-            data: {
-                conversation_id: conversationId,
-                client_msg_id: clientMsgId,
-                type: 'text',
-                body
-            }
-        });
-    }
-
-    markRead(conversationId: string, lastMessageId: string) {
-        this.send({
-            type: 'mark_read',
-            data: {
-                conversation_id: conversationId,
-                last_message_id: lastMessageId
-            }
-        });
-    }
-
-    private send(msg: WsMessageOut) {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify(msg));
-        } else {
-            this.messageQueue.push(msg); // Сохраняем в очередь, если WS еще не открыт
-        }
-    }
-
-    onMessage(handler: ChatMessageHandler) {
-        this.messageHandlers.add(handler);
-        return () => this.messageHandlers.delete(handler);
-    }
-
-    onUpdate(handler: ConversationUpdateHandler) {
-        this.updateHandlers.add(handler);
-        return () => this.updateHandlers.delete(handler);
-    }
-
-    private notifyMessageHandlers(conversationId: string, message: ChatMessage) {
-        this.messageHandlers.forEach(h => h(conversationId, message));
-    }
-
-    private notifyUpdateHandlers(conversationId: string, action: string) {
-        this.updateHandlers.forEach(h => h(conversationId, action));
     }
 }
 
